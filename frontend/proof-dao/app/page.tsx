@@ -1,3 +1,5 @@
+"use client"
+
 import {
   ArrowRight,
   Shield,
@@ -12,13 +14,188 @@ import {
   Brain,
   Network,
   Globe,
+  Wallet,
+  LogOut,
+  SwitchCamera,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function HomePage() {
+  const [walletAddress, setWalletAddress] = useState("")
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [isSwitching, setIsSwitching] = useState(false)
+  const [error, setError] = useState("")
+
+  const router = useRouter()
+
+  // Metis Hyperion Testnet configuration
+  const METIS_HYPERION_TESTNET = {
+    chainId: "0x20A55", // 133717 in hex
+    chainName: "Metis Hyperion Testnet",
+    nativeCurrency: {
+      name: "Metis",
+      symbol: "hMETIS",
+      decimals: 18,
+    },
+    rpcUrls: ["https://hyperion-testnet.metisdevops.link/"],
+    blockExplorerUrls: ["https://hyperion-testnet-explorer.metisdevops.link/"],
+  }
+
+  const connectWallet = async () => {
+    if (!window.ethereum) {
+      setError("MetaMask is not installed!")
+      return
+    }
+
+    setIsConnecting(true)
+    setError("")
+
+    try {
+      // Request account access
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      })
+
+      // Check if we're on the correct network
+      const chainId = await window.ethereum.request({
+        method: "eth_chainId",
+      })
+
+      if (chainId !== METIS_HYPERION_TESTNET.chainId) {
+        try {
+          // Try to switch to Metis Hyperion Testnet
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: METIS_HYPERION_TESTNET.chainId }],
+          })
+        } catch (switchError: any) {
+          // If the network doesn't exist, add it
+          if (switchError && typeof switchError === "object" && "code" in switchError && switchError.code === 4902) {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [METIS_HYPERION_TESTNET],
+            })
+          } else {
+            throw switchError
+          }
+        }
+      }
+
+      setWalletAddress(accounts[0])
+      console.log("Connected wallet address:", accounts[0])
+    } catch (err) {
+      if (err && typeof err === "object" && "message" in err) {
+        setError((err as { message: string }).message || "Failed to connect wallet")
+      } else {
+        setError("Failed to connect wallet")
+      }
+      console.error("Wallet connection error:", err)
+    } finally {
+      setIsConnecting(false)
+    }
+  }
+
+  const disconnectWallet = () => {
+    setWalletAddress("")
+    setError("")
+    console.log("Wallet disconnected")
+  }
+
+  const switchToHyperion = async () => {
+    if (!window.ethereum) {
+      setError("MetaMask is not installed.")
+      return
+    }
+
+    setIsSwitching(true)
+  
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: METIS_HYPERION_TESTNET.chainId }],
+      })
+    } catch (switchError: unknown) {
+      if (
+        switchError &&
+        typeof switchError === "object" &&
+        "code" in switchError &&
+        (switchError as { code: number }).code === 4902
+      ) {
+        try {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [METIS_HYPERION_TESTNET],
+          })
+        } catch (addError) {
+          setError("Failed to add Hyperion Testnet.")
+        }
+      } else {
+        setError("Failed to switch network.")
+      }
+    } finally {
+      setError("")
+      setIsSwitching(false)
+    }
+  }
+
+  const formatAddress = (address: string | any[]) => {
+    if (!address) return ""
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  }
+
+  // Listen for account changes
+  useEffect(() => {
+    if (window.ethereum) {
+      const handleAccountsChanged = (accounts: string | any[]) => {
+        if (accounts.length === 0) {
+          setWalletAddress("")
+        } else {
+          setWalletAddress(accounts[0])
+          console.log("Account changed to:", accounts[0])
+        }
+      }
+
+      const handleChainChanged = (chainId: string) => {
+        if (chainId !== METIS_HYPERION_TESTNET.chainId) {
+          setError("Please switch to Metis Hyperion Testnet!")
+        } else {
+          setError("")
+        }
+      }
+
+      window.ethereum.on("accountsChanged", handleAccountsChanged)
+      window.ethereum.on("chainChanged", handleChainChanged)
+
+      // Check if already connected
+      window.ethereum
+        .request({ method: "eth_accounts" })
+        .then((accounts: string | any[]) => {
+          if (accounts.length > 0) {
+            setWalletAddress(accounts[0])
+          }
+        })
+
+      return () => {
+        if (window.ethereum) {
+          window.ethereum.removeListener("accountsChanged", handleAccountsChanged)
+          window.ethereum.removeListener("chainChanged", handleChainChanged)
+        }
+      }
+    }
+  }, [])
+
+  const handleLaunch = () => {
+    router.push("/dao")
+  }
+
+  const handleCreateDAO = () => {
+    router.push("/create-dao")
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-cyan-600 to-slate-900">
       {/* Navigation */}
@@ -44,12 +221,69 @@ export default function HomePage() {
               <a href="/dashboard" className="text-slate-300 hover:text-white transition-colors">
                 Dashboard
               </a>
-              <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
+              <a href="/profile/" className="text-slate-300 hover:text-white transition-colors">
+                My Profile
+              </a>
+              <Button onClick={handleLaunch} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
                 Launch App
               </Button>
-              <ConnectButton />
+            </div>
+            
+            {/* Wallet Connection Button */}
+            <div className="flex items-center space-x-4">
+              {walletAddress ? (
+                <div className="flex items-center space-x-2">
+                  <div className="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300">
+                    <span className="text-green-400 mr-2">●</span>
+                    {formatAddress(walletAddress)}
+                  </div>
+                  <Button
+                    onClick={disconnectWallet}
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-600 text-slate-300 hover:bg-slate-800"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={connectWallet}
+                  disabled={isConnecting}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                >
+                  <Wallet className="w-4 h-4 mr-2" />
+                  {isConnecting ? "Connecting..." : "Connect Wallet"}
+                </Button>
+              )}
             </div>
           </div>
+          
+          {/* Error message */}
+          {error && (
+            <div className="pb-4 flex flex-row justify-between">
+              <div className="bg-red-900/50 border border-red-700 text-red-300 px-4 py-2 rounded-lg text-sm">
+                {error}
+              </div>
+              <Button
+                  onClick={switchToHyperion}
+                  disabled={isConnecting}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                >
+                  <SwitchCamera className="w-4 h-4 mr-2" />
+                  {isConnecting ? "Switching..." : "Switch To Hyperion Testnet"}
+                </Button>
+            </div>
+          )}
+          
+          {/* Connected address display */}
+          {walletAddress && (
+            <div className="pb-4">
+              <div className="bg-green-900/20 border border-green-700/50 text-green-300 px-4 py-2 rounded-lg text-sm">
+                Connected: {walletAddress}
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -87,6 +321,7 @@ export default function HomePage() {
           </div>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
+              onClick={handleLaunch}
               size="lg"
               className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-lg px-8 py-4"
             >
@@ -94,11 +329,12 @@ export default function HomePage() {
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
             <Button
+              onClick={handleCreateDAO}
               size="lg"
               variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-800 text-lg px-8 py-4 bg-transparent"
+              className="border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-slate-200 text-lg px-8 py-4 bg-transparent"
             >
-              Create DAO Tasks
+              Create DAO
             </Button>
           </div>
         </div>
