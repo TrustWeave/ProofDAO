@@ -1514,12 +1514,12 @@ export default function DAODashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" className="text-slate-300 hover:text-white">
+              <Button variant="ghost" className="text-slate-300 hover:text-black">
                 <Share2 className="w-4 h-4 mr-2" />
                 Share
               </Button>
               {isDAOCreator && (
-                <Button variant="ghost" className="text-slate-300 hover:text-white">
+                <Button variant="ghost" className="text-slate-300 hover:text-black">
                   <Settings className="w-4 h-4 mr-2" />
                   Settings
                 </Button>
@@ -2100,7 +2100,7 @@ export default function DAODashboard() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleCancelTask(task.id)}
-                                className="border-red-600 text-red-400 hover:bg-red-900/20"
+                                className="border-red-600 text-red-400 hover:bg-red-900/20 hover:text-red-500"
                               >
                                 Cancel Task
                               </Button>
@@ -2110,7 +2110,7 @@ export default function DAODashboard() {
                               size="sm"
                               variant="outline"
                               onClick={() => router.push(`/task/${task.id}`)}
-                              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                              className="border-slate-600 text-slate-800 hover:bg-slate-700 hover:text-slate-300"
                             >
                               View Details
                             </Button>
@@ -2122,7 +2122,7 @@ export default function DAODashboard() {
                                 setDisputeForm((prev) => ({ ...prev, taskId: task.id }))
                                 setShowDispute(true)
                               }}
-                              className="border-orange-600 text-orange-400 hover:bg-orange-900/20"
+                              className="border-orange-600 text-orange-400 hover:bg-orange-900/20 hover:text-orange-500"
                             >
                               <AlertTriangle className="w-4 h-4 mr-1" />
                               Dispute
