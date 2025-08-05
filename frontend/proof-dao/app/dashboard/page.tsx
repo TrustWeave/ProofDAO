@@ -1,481 +1,875 @@
 "use client"
 
-import {
-    Bell,
-    Plus,
-    Search,
-    Trophy,
-    Users,
-    CheckCircle,
-    Clock,
-    Award,
-    Coins,
-    Brain,
-    Shield,
-    ArrowRight,
-    Gift,
-    Router,
-  } from "lucide-react"
-  import { Button } from "@/components/ui/button"
-  import { Card, CardContent } from "@/components/ui/card"
-  import { Badge } from "@/components/ui/badge"
-  import { Progress } from "@/components/ui/progress"
-  import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-  
-  export default function DashboardPage() {
-    const router = useRouter();
-    // Mock user data
-    const userData = {
-      address: "0x742d35Cc6634C0532925a3b8D4C0532925a3b8D4",
-      username: "cryptodev_alice",
-      level: 12,
-      points: 2847,
-      nextLevelPoints: 3000,
-      completedTasks: 23,
-      createdDAOs: 2,
-      reputation: 4.8,
-      badges: 8,
+import { ethers } from "ethers"
+import {
+  Users,
+  Calendar,
+  Coins,
+  Shield,
+  Plus,
+  ArrowRight,
+  CheckCircle,
+  Target,
+  Trophy,
+  Award,
+  Activity,
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CONTRACT_ADDRESS_DAO, CONTRACT_ADDRESS_REPUTATION } from "@/utils/constants"
+import ReputationNFTCard from "@/components/reputation-nftcard"
+
+interface DAO {
+  id: string
+  name: string
+  description: string
+  creator: string
+  metadataURI: string
+  createdAt: number
+  isActive: boolean
+  totalTasks: number
+  totalRewards: string
+  category?: string
+  members?: number
+}
+
+interface Task {
+  id: string
+  daoId: string
+  title: string
+  description: string
+  requirements: string
+  metadataURI: string
+  reward: string
+  creator: string
+  deadline: number
+  createdAt: number
+  status: number
+  maxSubmissions: number
+  currentSubmissions: number
+  skillTags: string[]
+}
+
+interface UserStats {
+  points: number
+  completedTasks: number
+  earnings: string
+  level: number
+  nextLevelPoints: number
+}
+
+const contractABI = [
+  {
+    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    name: "daos",
+    outputs: [
+      { internalType: "uint256", name: "id", type: "uint256" },
+      { internalType: "string", name: "name", type: "string" },
+      { internalType: "string", name: "description", type: "string" },
+      { internalType: "address", name: "creator", type: "address" },
+      { internalType: "string", name: "metadataURI", type: "string" },
+      { internalType: "uint256", name: "createdAt", type: "uint256" },
+      { internalType: "bool", name: "isActive", type: "bool" },
+      { internalType: "uint256", name: "totalTasks", type: "uint256" },
+      { internalType: "uint256", name: "totalRewards", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getCurrentCounters",
+    outputs: [
+      { internalType: "uint256", name: "daos", type: "uint256" },
+      { internalType: "uint256", name: "tasks", type: "uint256" },
+      { internalType: "uint256", name: "submissions", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "userPoints",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "userCompletedTasks",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "userEarnings",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "daoId", type: "uint256" }],
+    name: "getDAOTasks",
+    outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    name: "tasks",
+    outputs: [
+      { internalType: "uint256", name: "id", type: "uint256" },
+      { internalType: "uint256", name: "daoId", type: "uint256" },
+      { internalType: "string", name: "title", type: "string" },
+      { internalType: "string", name: "description", type: "string" },
+      { internalType: "string", name: "requirements", type: "string" },
+      { internalType: "string", name: "metadataURI", type: "string" },
+      { internalType: "uint256", name: "reward", type: "uint256" },
+      { internalType: "address", name: "creator", type: "address" },
+      { internalType: "uint256", name: "deadline", type: "uint256" },
+      { internalType: "uint256", name: "createdAt", type: "uint256" },
+      { internalType: "uint8", name: "status", type: "uint8" },
+      { internalType: "uint256", name: "maxSubmissions", type: "uint256" },
+      { internalType: "uint256", name: "currentSubmissions", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+]
+
+const reputationContractABI = [
+  {
+    inputs: [{ internalType: "address", name: "user", type: "address" }],
+    name: "getUserReputations",
+    outputs: [{ internalType: "uint256[]", name: "", type: "uint256[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    name: "reputations",
+    outputs: [
+      { internalType: "address", name: "contributor", type: "address" },
+      { internalType: "uint8", name: "skillType", type: "uint8" },
+      { internalType: "uint8", name: "level", type: "uint8" },
+      { internalType: "uint256", name: "completedTasks", type: "uint256" },
+      { internalType: "uint256", name: "totalEarnings", type: "uint256" },
+      { internalType: "uint256", name: "averageQuality", type: "uint256" },
+      { internalType: "uint256", name: "createdAt", type: "uint256" },
+      { internalType: "uint256", name: "lastUpdated", type: "uint256" },
+      { internalType: "bool", name: "isActive", type: "bool" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "tokenId", type: "uint256" }],
+    name: "getReputationBadges",
+    outputs: [{ internalType: "string[]", name: "", type: "string[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "socialLinks",
+    outputs: [
+      { internalType: "string", name: "github", type: "string" },
+      { internalType: "string", name: "twitter", type: "string" },
+      { internalType: "string", name: "discord", type: "string" },
+      { internalType: "string", name: "linkedin", type: "string" },
+      { internalType: "string", name: "website", type: "string" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+]
+
+export default function DashboardPage() {
+  const router = useRouter()
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("All")
+  const [daos, setDaos] = useState<DAO[]>([])
+  const [recentTasks, setRecentTasks] = useState<Task[]>([])
+  const [userReputations, setUserReputations] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null)
+  const [contract, setContract] = useState<ethers.Contract | null>(null)
+  const [reputationContract, setReputationContract] = useState<ethers.Contract | null>(null)
+  const [totalDAOs, setTotalDAOs] = useState(0)
+  const [totalTasks, setTotalTasks] = useState(0)
+  const [account, setAccount] = useState<string | null>(null)
+
+  const [userStats, setUserStats] = useState<UserStats>({
+    points: 0,
+    completedTasks: 0,
+    earnings: "0",
+    level: 1,
+    nextLevelPoints: 1000,
+  })
+
+  // Initialize ethers provider and contract
+  useEffect(() => {
+    const initializeEthers = async () => {
+      try {
+        if (typeof window !== "undefined" && window.ethereum) {
+          const provider = new ethers.BrowserProvider(window.ethereum)
+          const accounts = await provider.send("eth_requestAccounts", [])
+          const contract = new ethers.Contract(CONTRACT_ADDRESS_DAO!, contractABI, provider)
+
+          setProvider(provider)
+          setContract(contract)
+          setAccount(accounts[0])
+
+          // Initialize reputation contract if available
+          if (CONTRACT_ADDRESS_REPUTATION) {
+            const reputationContract = new ethers.Contract(CONTRACT_ADDRESS_REPUTATION, reputationContractABI, provider)
+            setReputationContract(reputationContract)
+          }
+
+          // Get total counters
+          const counters = await contract.getCurrentCounters()
+          setTotalDAOs(Number(counters[0]))
+          setTotalTasks(Number(counters[1]))
+        } else {
+          // For read-only operations
+          const provider = new ethers.JsonRpcProvider("https://hyperion-testnet.metisdevops.link")
+          const contract = new ethers.Contract(CONTRACT_ADDRESS_DAO!, contractABI, provider)
+
+          setContract(contract)
+
+          const counters = await contract.getCurrentCounters()
+          setTotalDAOs(Number(counters[0]))
+          setTotalTasks(Number(counters[1]))
+        }
+      } catch (error) {
+        console.error("Error initializing ethers:", error)
+        setIsLoading(false)
+      }
     }
-  
-    const recentActivities = [
-      {
-        id: 1,
-        type: "task_completed",
-        title: "Smart Contract Audit completed",
-        dao: "DeFi Protocol DAO",
-        reward: "150 METIS",
-        time: "2 hours ago",
-        status: "completed",
-      },
-      {
-        id: 2,
-        type: "badge_earned",
-        title: "Security Expert badge earned",
-        description: "Completed 10 security audits",
-        time: "1 day ago",
-        status: "new",
-      },
-      {
-        id: 3,
-        type: "dao_created",
-        title: "Created 'Web3 Marketing DAO'",
-        description: "Successfully launched with 50 initial members",
-        time: "3 days ago",
-        status: "success",
-      },
-      {
-        id: 4,
-        type: "task_submitted",
-        title: "UI/UX Design submitted",
-        dao: "NFT Marketplace DAO",
-        time: "5 days ago",
-        status: "pending",
-      },
-    ]
-  
-    const aiRecommendations = [
-      {
-        id: 1,
-        title: "Smart Contract Development",
-        dao: "GameFi Protocol",
-        reward: "200 METIS",
-        difficulty: "Advanced",
-        match: 95,
-        deadline: "3 days",
-        tags: ["Solidity", "DeFi", "Security"],
-      },
-      {
-        id: 2,
-        title: "Frontend React Development",
-        dao: "Social DAO Platform",
-        reward: "120 METIS",
-        difficulty: "Intermediate",
-        match: 88,
-        deadline: "1 week",
-        tags: ["React", "Web3", "UI/UX"],
-      },
-      {
-        id: 3,
-        title: "Technical Documentation",
-        dao: "Cross-chain Bridge",
-        reward: "80 METIS",
-        difficulty: "Beginner",
-        match: 82,
-        deadline: "5 days",
-        tags: ["Writing", "Technical", "Documentation"],
-      },
-    ]
-  
-    const leaderboardData = [
-      { rank: 1, username: "zk_master", points: 5420, badge: "🏆" },
-      { rank: 2, username: "dao_builder", points: 4890, badge: "🥈" },
-      { rank: 3, username: "crypto_alice", points: 4250, badge: "🥉" },
-      { rank: 4, username: "web3_dev", points: 3890, badge: "⭐" },
-      { rank: 5, username: "defi_expert", points: 3650, badge: "⭐" },
-    ]
-  
-    const notifications = [
-      {
-        id: 1,
-        type: "task_approved",
-        message: "Your smart contract audit was approved!",
-        time: "1 hour ago",
-        unread: true,
-      },
-      {
-        id: 2,
-        type: "new_task",
-        message: "New high-paying task matches your skills",
-        time: "3 hours ago",
-        unread: true,
-      },
-      {
-        id: 3,
-        type: "level_up",
-        message: "Congratulations! You reached Level 12",
-        time: "1 day ago",
-        unread: false,
-      },
-    ]
-  
+
+    initializeEthers()
+  }, [])
+
+  // Load user statistics
+  useEffect(() => {
+    const loadUserStats = async () => {
+      if (!contract || !account) return
+
+      try {
+        const [points, completedTasks, earnings] = await Promise.all([
+          contract.userPoints(account),
+          contract.userCompletedTasks(account),
+          contract.userEarnings(account),
+        ])
+
+        // Calculate level based on points (every 1000 points = 1 level)
+        const pointsNum = Number(points)
+        const level = Math.floor(pointsNum / 1000) + 1
+        const nextLevelPoints = level * 1000
+
+        setUserStats({
+          points: pointsNum,
+          completedTasks: Number(completedTasks),
+          earnings: earnings.toString(),
+          level,
+          nextLevelPoints,
+        })
+      } catch (error) {
+        console.error("Error loading user stats:", error)
+      }
+    }
+
+    loadUserStats()
+  }, [contract, account])
+
+  // Load user reputation NFTs
+  useEffect(() => {
+    const loadUserReputations = async () => {
+      if (!reputationContract || !account) return
+
+      try {
+        const tokenIds = await reputationContract.getUserReputations(account)
+        setUserReputations(tokenIds.map((id: any) => id.toString()))
+      } catch (error) {
+        console.error("Error loading user reputations:", error)
+      }
+    }
+
+    loadUserReputations()
+  }, [reputationContract, account])
+
+  // Load recent DAOs and tasks
+  useEffect(() => {
+    const fetchRecentData = async () => {
+      if (!contract || totalDAOs === 0) {
+        setIsLoading(false)
+        return
+      }
+
+      const daoList: DAO[] = []
+      const taskList: Task[] = []
+
+      // Load recent DAOs (last 6)
+      const startDAO = Math.max(1, totalDAOs - 5)
+      for (let i = totalDAOs; i >= startDAO; i--) {
+        try {
+          const result = await contract.daos(i)
+          if (result && result[6]) {
+            // isActive
+            const [id, name, description, creator, metadataURI, createdAt, isActive, totalTasks, totalRewards] = result
+            daoList.push({
+              id: id.toString(),
+              name,
+              description,
+              creator,
+              metadataURI,
+              createdAt: Number(createdAt),
+              isActive,
+              totalTasks: Number(totalTasks),
+              totalRewards: totalRewards.toString(),
+              category: "General",
+              members: 1,
+            })
+          }
+        } catch (err) {
+          console.error(`Error fetching DAO ${i}:`, err)
+        }
+      }
+
+      // Load recent tasks from recent DAOs
+      for (const dao of daoList.slice(0, 3)) {
+        try {
+          const taskIds = await contract.getDAOTasks(BigInt(dao.id))
+          for (const taskId of taskIds.slice(-2)) {
+            // Get last 2 tasks per DAO
+            try {
+              const taskData = await contract.tasks(taskId)
+              const [
+                id,
+                daoId,
+                title,
+                description,
+                requirements,
+                metadataURI,
+                reward,
+                creator,
+                deadline,
+                createdAt,
+                status,
+                maxSubmissions,
+                currentSubmissions,
+              ] = taskData
+
+              taskList.push({
+                id: id.toString(),
+                daoId: daoId.toString(),
+                title,
+                description,
+                requirements,
+                metadataURI,
+                reward: reward.toString(),
+                creator,
+                deadline: Number(deadline),
+                createdAt: Number(createdAt),
+                status: Number(status),
+                maxSubmissions: Number(maxSubmissions),
+                currentSubmissions: Number(currentSubmissions),
+                skillTags: [],
+              })
+            } catch (error) {
+              console.error(`Error loading task ${taskId}:`, error)
+            }
+          }
+        } catch (error) {
+          console.error(`Error loading tasks for DAO ${dao.id}:`, error)
+        }
+      }
+
+      setDaos(daoList)
+      setRecentTasks(taskList.sort((a, b) => b.createdAt - a.createdAt).slice(0, 6))
+      setIsLoading(false)
+    }
+
+    fetchRecentData()
+  }, [contract, totalDAOs])
+
+  const formatReward = (reward: string) => {
+    const value = Number.parseFloat(ethers.formatEther(reward))
+    return value.toFixed(4)
+  }
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp * 1000).toLocaleDateString()
+  }
+
+  const getTaskStatusBadge = (status: number) => {
+    switch (status) {
+      case 0:
+        return <Badge className="bg-green-900/50 text-green-400 border-green-700">Open</Badge>
+      case 1:
+        return <Badge className="bg-yellow-900/50 text-yellow-400 border-yellow-700">In Review</Badge>
+      case 2:
+        return <Badge className="bg-blue-900/50 text-blue-400 border-blue-700">Completed</Badge>
+      case 3:
+        return <Badge className="bg-red-900/50 text-red-400 border-red-700">Cancelled</Badge>
+      default:
+        return <Badge className="bg-gray-900/50 text-gray-400 border-gray-700">Unknown</Badge>
+    }
+  }
+
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-cyan-600 to-slate-900">
-        {/* Navigation */}
-        <nav className="border-b border-slate-800/50 backdrop-blur-sm bg-slate-900/50 sticky top-0 z-50">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-cyan-900 to-slate-900">
+        <nav className="border-b border-slate-800/50 backdrop-blur-sm bg-slate-900/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-4">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center">
                   <Shield className="w-6 h-6 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-white">ProofDAO</span>
               </div>
-              <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="icon" className="relative text-slate-300 hover:text-white">
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-                </Button>
-                <Avatar className="w-8 h-8">
-                  <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                  <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm">
-                    CA
-                  </AvatarFallback>
-                </Avatar>
-              </div>
             </div>
           </div>
         </nav>
-  
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Welcome back, {userData.username}! 👋</h1>
-                <p className="text-slate-300">
-                  Ready to contribute to the Web3 ecosystem? Here's what's happening today.
-                </p>
-              </div>
-              <div className="mt-4 md:mt-0">
-                <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 text-lg">
-                  Level {userData.level}
-                </Badge>
-              </div>
-            </div>
-  
-            {/* User Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-400 mb-1">{userData.points.toLocaleString()}</div>
-                  <div className="text-sm text-slate-300">Total Points</div>
-                </CardContent>
-              </Card>
-              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-green-400 mb-1">{userData.completedTasks}</div>
-                  <div className="text-sm text-slate-300">Tasks Completed</div>
-                </CardContent>
-              </Card>
-              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-purple-400 mb-1">{userData.reputation}</div>
-                  <div className="text-sm text-slate-300">Reputation</div>
-                </CardContent>
-              </Card>
-              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                <CardContent className="p-4 text-center">
-                  <div className="text-2xl font-bold text-yellow-400 mb-1">{userData.badges}</div>
-                  <div className="text-sm text-slate-300">Badges Earned</div>
-                </CardContent>
-              </Card>
-            </div>
-  
-            {/* Level Progress */}
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm mb-8">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">Level Progress</h3>
-                    <p className="text-slate-300 text-sm">
-                      {userData.nextLevelPoints - userData.points} points to Level {userData.level + 1}
-                    </p>
-                  </div>
-                  <Trophy className="w-8 h-8 text-yellow-400" />
-                </div>
-                <Progress value={(userData.points / userData.nextLevelPoints) * 100} className="h-3 bg-slate-700" />
-                <div className="flex justify-between text-sm text-slate-400 mt-2">
-                  <span>{userData.points} points</span>
-                  <span>{userData.nextLevelPoints} points</span>
-                </div>
-              </CardContent>
-            </Card>
+
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-slate-300 text-lg">Loading dashboard...</p>
           </div>
-  
-          {/* Main Dashboard Grid */}
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Left Column */}
-            <div className="lg:col-span-2 space-y-8">
-              {/* Quick Actions */}
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-6">Quick Actions</h2>
-                <div className="grid md:grid-cols-3 gap-4">
-                  <Card onClick={() => router.push("/create-dao")} className="bg-gradient-to-br from-blue-900/50 to-blue-800/50 border-blue-700/50 hover:from-blue-800/50 hover:to-blue-700/50 transition-all cursor-pointer group">
-                    <CardContent className="p-6 text-center">
-                      <Plus className="w-12 h-12 text-blue-400 mx-auto mb-4 group-hover:scale-110 transition-transform" />
-                      <h3 className="text-lg font-semibold text-white mb-2">Create DAO</h3>
-                      <p className="text-slate-300 text-sm">Launch your own DAO and start posting tasks</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-gradient-to-br from-purple-900/50 to-purple-800/50 border-purple-700/50 hover:from-purple-800/50 hover:to-purple-700/50 transition-all cursor-pointer group">
-                    <CardContent className="p-6 text-center">
-                      <Search className="w-12 h-12 text-purple-400 mx-auto mb-4 group-hover:scale-110 transition-transform" />
-                      <h3 className="text-lg font-semibold text-white mb-2">Browse Tasks</h3>
-                      <p className="text-slate-300 text-sm">Find tasks that match your skills</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="bg-gradient-to-br from-green-900/50 to-green-800/50 border-green-700/50 hover:from-green-800/50 hover:to-green-700/50 transition-all cursor-pointer group">
-                    <CardContent className="p-6 text-center">
-                      <Award className="w-12 h-12 text-green-400 mx-auto mb-4 group-hover:scale-110 transition-transform" />
-                      <h3 className="text-lg font-semibold text-white mb-2">Check Reputation</h3>
-                      <p className="text-slate-300 text-sm">View your on-chain reputation and badges</p>
-                    </CardContent>
-                  </Card>
-                </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-cyan-900 to-slate-900">
+      {/* Navigation */}
+      <nav className="border-b border-slate-800/50 backdrop-blur-sm bg-slate-900/50 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-full flex items-center justify-center">
+                <Shield className="w-6 h-6 text-white" />
               </div>
-  
-              {/* AI Recommendations */}
-              <div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-white flex items-center">
-                    <Brain className="w-6 h-6 text-purple-400 mr-2" />
-                    AI-Powered Recommendations
-                  </h2>
-                  <Button variant="ghost" className="text-slate-300 hover:text-white">
-                    View All
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
+              <span className="text-2xl font-bold text-white">ProofDAO</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button onClick={() => router.push("/dao")} variant="ghost" className="text-slate-300 hover:text-white">
+                Browse DAOs
+              </Button>
+              <Button
+                onClick={() => router.push("/reputation")}
+                variant="ghost"
+                className="text-slate-300 hover:text-white"
+              >
+                <Trophy className="w-4 h-4 mr-2" />
+                Reputation
+              </Button>
+              <Button
+                onClick={() => router.push("/create-dao")}
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create DAO
+              </Button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-white mb-4">Dashboard</h1>
+          <p className="text-xl text-slate-300">Welcome back! Here's what's happening in your DAOs</p>
+        </div>
+
+        {/* User Stats */}
+        {account && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white mb-4">Your Statistics</h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <Card className="bg-gradient-to-br from-blue-900/30 to-blue-800/30 border-blue-700/50">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-blue-300 text-sm">Your Points</p>
+                      <p className="text-2xl font-bold text-white">{userStats.points.toLocaleString()}</p>
+                    </div>
+                    <Trophy className="w-8 h-8 text-blue-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-green-900/30 to-green-800/30 border-green-700/50">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-green-300 text-sm">Completed Tasks</p>
+                      <p className="text-2xl font-bold text-white">{userStats.completedTasks}</p>
+                    </div>
+                    <CheckCircle className="w-8 h-8 text-green-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-yellow-900/30 to-yellow-800/30 border-yellow-700/50">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-yellow-300 text-sm">Total Earnings</p>
+                      <p className="text-2xl font-bold text-white">{formatReward(userStats.earnings)} METIS</p>
+                    </div>
+                    <Coins className="w-8 h-8 text-yellow-400" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-900/30 to-purple-800/30 border-purple-700/50">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-purple-300 text-sm">Reputation NFTs</p>
+                      <p className="text-2xl font-bold text-white">{userReputations.length}</p>
+                    </div>
+                    <Award className="w-8 h-8 text-purple-400" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Platform Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm">Total DAOs</p>
+                  <p className="text-2xl font-bold text-white">{totalDAOs}</p>
                 </div>
-                <div className="space-y-4">
-                  {aiRecommendations.map((task) => (
-                    <Card
-                      key={task.id}
-                      className="bg-slate-800/50 border-slate-700 backdrop-blur-sm hover:bg-slate-800/70 transition-all"
-                    >
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <h3 className="text-lg font-semibold text-white">{task.title}</h3>
-                              <Badge className="bg-green-900/50 text-green-400 border-green-700">
-                                {task.match}% Match
-                              </Badge>
-                            </div>
-                            <p className="text-slate-300 text-sm mb-2">by {task.dao}</p>
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {task.tags.map((tag) => (
-                                <Badge key={tag} variant="outline" className="border-slate-600 text-slate-300">
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
+                <Users className="w-8 h-8 text-blue-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm">Active Tasks</p>
+                  <p className="text-2xl font-bold text-white">
+                    {recentTasks.filter((task) => task.status === 0).length}
+                  </p>
+                </div>
+                <Target className="w-8 h-8 text-green-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm">Total Tasks</p>
+                  <p className="text-2xl font-bold text-white">{totalTasks}</p>
+                </div>
+                <Activity className="w-8 h-8 text-purple-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-slate-400 text-sm">Total Rewards</p>
+                  <p className="text-2xl font-bold text-white">
+                    {daos.reduce((sum, dao) => sum + Number.parseFloat(formatReward(dao.totalRewards)), 0).toFixed(2)}{" "}
+                    METIS
+                  </p>
+                </div>
+                <Coins className="w-8 h-8 text-yellow-400" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabs */}
+        <Tabs defaultValue="overview">
+          <TabsList className="bg-slate-800/50 border-slate-700">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-slate-700">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="data-[state=active]:bg-slate-700">
+              Recent Tasks
+            </TabsTrigger>
+            <TabsTrigger value="daos" className="data-[state=active]:bg-slate-700">
+              Recent DAOs
+            </TabsTrigger>
+            {userReputations.length > 0 && (
+              <TabsTrigger value="reputation" className="data-[state=active]:bg-slate-700">
+                My Reputation NFTs
+              </TabsTrigger>
+            )}
+          </TabsList>
+
+          <TabsContent value="overview" className="mt-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Activity className="w-5 h-5 mr-2 text-green-400" />
+                    Recent Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {recentTasks.length > 0 ? (
+                    <div className="space-y-4">
+                      {recentTasks.slice(0, 3).map((task) => (
+                        <div key={task.id} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+                          <div>
+                            <h4 className="text-white font-medium">{task.title}</h4>
+                            <p className="text-slate-400 text-sm">{formatReward(task.reward)} METIS</p>
                           </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-green-400 mb-1">{task.reward}</div>
-                            <div className="text-sm text-slate-400">{task.difficulty}</div>
-                          </div>
+                          {getTaskStatusBadge(task.status)}
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center text-slate-400 text-sm">
-                            <Clock className="w-4 h-4 mr-1" />
-                            {task.deadline} left
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Target className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                      <p className="text-slate-400">No recent activity</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center">
+                    <Users className="w-5 h-5 mr-2 text-blue-400" />
+                    Popular DAOs
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {daos.length > 0 ? (
+                    <div className="space-y-4">
+                      {daos.slice(0, 3).map((dao) => (
+                        <div key={dao.id} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm">
+                                {dao.name.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <h4 className="text-white font-medium">{dao.name}</h4>
+                              <p className="text-slate-400 text-sm">{dao.totalTasks} tasks</p>
+                            </div>
                           </div>
                           <Button
                             size="sm"
-                            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                            onClick={() => router.push(`/dao/${dao.id}`)}
+                            className="bg-blue-600 hover:bg-blue-700"
                           >
-                            Apply Now
+                            View
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                      <p className="text-slate-400">No DAOs available</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="tasks" className="mt-6">
+            <div className="space-y-6">
+              {recentTasks.length > 0 ? (
+                <div className="grid gap-6">
+                  {recentTasks.map((task) => (
+                    <Card key={task.id} className="bg-slate-800/50 border-slate-700">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h3 className="text-xl font-semibold text-white">{task.title}</h3>
+                              {getTaskStatusBadge(task.status)}
+                            </div>
+                            <p className="text-slate-300 mb-4">{task.description}</p>
+                            <div className="flex items-center space-x-6 text-sm text-slate-400">
+                              <div className="flex items-center">
+                                <Coins className="w-4 h-4 mr-1" />
+                                {formatReward(task.reward)} METIS
+                              </div>
+                              <div className="flex items-center">
+                                <Calendar className="w-4 h-4 mr-1" />
+                                Due {formatDate(task.deadline)}
+                              </div>
+                              <div className="flex items-center">
+                                <Users className="w-4 h-4 mr-1" />
+                                {task.currentSubmissions}/{task.maxSubmissions} submissions
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => router.push(`/task/${task.id}`)}
+                            className="bg-gradient-to-r from-blue-600 to-cyan-600"
+                          >
+                            View Task
+                            <ArrowRight className="w-4 h-4 ml-2" />
                           </Button>
                         </div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
-              </div>
-  
-              {/* Recent Activity */}
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-6">Recent Activity</h2>
-                <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      {recentActivities.map((activity) => (
-                        <div key={activity.id} className="flex items-start space-x-4 p-4 rounded-lg bg-slate-700/30">
-                          <div className="flex-shrink-0">
-                            {activity.type === "task_completed" && <CheckCircle className="w-6 h-6 text-green-400" />}
-                            {activity.type === "badge_earned" && <Award className="w-6 h-6 text-yellow-400" />}
-                            {activity.type === "dao_created" && <Users className="w-6 h-6 text-blue-400" />}
-                            {activity.type === "task_submitted" && <Clock className="w-6 h-6 text-orange-400" />}
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="text-white font-medium">{activity.title}</h4>
-                            {activity.dao && <p className="text-slate-300 text-sm">for {activity.dao}</p>}
-                            {activity.description && <p className="text-slate-300 text-sm">{activity.description}</p>}
-                            {activity.reward && <p className="text-green-400 text-sm font-medium">+{activity.reward}</p>}
-                            <p className="text-slate-400 text-xs mt-1">{activity.time}</p>
-                          </div>
-                          <Badge
-                            className={
-                              activity.status === "completed"
-                                ? "bg-green-900/50 text-green-400 border-green-700"
-                                : activity.status === "new"
-                                  ? "bg-blue-900/50 text-blue-400 border-blue-700"
-                                  : activity.status === "success"
-                                    ? "bg-purple-900/50 text-purple-400 border-purple-700"
-                                    : "bg-orange-900/50 text-orange-400 border-orange-700"
-                            }
-                          >
-                            {activity.status}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Target className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-white mb-2">No Recent Tasks</h3>
+                  <p className="text-slate-400 mb-6">Check back later for new opportunities</p>
+                  <Button onClick={() => router.push("/dao")} className="bg-gradient-to-r from-blue-600 to-cyan-600">
+                    Browse All Tasks
+                  </Button>
+                </div>
+              )}
             </div>
-  
-            {/* Right Column */}
-            <div className="space-y-8">
-              {/* Notifications */}
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-                  <Bell className="w-6 h-6 text-blue-400 mr-2" />
-                  Notifications
-                </h2>
-                <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      {notifications.map((notification) => (
-                        <div
-                          key={notification.id}
-                          className={`p-3 rounded-lg ${
-                            notification.unread ? "bg-blue-900/20 border border-blue-700/30" : "bg-slate-700/30"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="text-white text-sm">{notification.message}</p>
-                              <p className="text-slate-400 text-xs mt-1">{notification.time}</p>
-                            </div>
-                            {notification.unread && (
-                              <div className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0 mt-2"></div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <Button variant="ghost" className="w-full mt-4 text-slate-300 hover:text-white">
-                      View All Notifications
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-  
-              {/* Leaderboard Preview */}
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-                  <Trophy className="w-6 h-6 text-yellow-400 mr-2" />
-                  Leaderboard
-                </h2>
-                <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                  <CardContent className="p-6">
-                    <div className="space-y-3">
-                      {leaderboardData.map((user) => (
-                        <div
-                          key={user.rank}
-                          className={`flex items-center justify-between p-3 rounded-lg ${
-                            user.username === "crypto_alice"
-                              ? "bg-blue-900/30 border border-blue-700/50"
-                              : "bg-slate-700/30"
-                          }`}
-                        >
+          </TabsContent>
+
+          <TabsContent value="daos" className="mt-6">
+            <div className="space-y-6">
+              {daos.length > 0 ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {daos.map((dao) => (
+                    <Card
+                      key={dao.id}
+                      className="bg-slate-800/50 border-slate-700 hover:border-slate-600 transition-all cursor-pointer group"
+                      onClick={() => router.push(`/dao/${dao.id}`)}
+                    >
+                      <CardHeader className="pb-4">
+                        <div className="flex items-start justify-between">
                           <div className="flex items-center space-x-3">
-                            <span className="text-2xl">{user.badge}</span>
+                            <Avatar className="w-10 h-10">
+                              <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                                {dao.name.substring(0, 2).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
                             <div>
-                              <p className="text-white font-medium">
-                                #{user.rank} {user.username}
-                              </p>
-                              <p className="text-slate-400 text-sm">{user.points.toLocaleString()} points</p>
+                              <CardTitle className="text-white text-lg group-hover:text-blue-400 transition-colors">
+                                {dao.name}
+                              </CardTitle>
+                              <Badge className="bg-blue-900/50 text-blue-400 border-blue-700 text-xs">
+                                {dao.category}
+                              </Badge>
                             </div>
                           </div>
-                          {user.username === "crypto_alice" && (
-                            <Badge className="bg-blue-900/50 text-blue-400 border-blue-700">You</Badge>
-                          )}
+                          <ArrowRight className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
                         </div>
-                      ))}
-                    </div>
-                    <Button variant="ghost" className="w-full mt-4 text-slate-300 hover:text-white">
-                      View Full Leaderboard
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-  
-              {/* Points Balance */}
-              <div>
-                <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-                  <Coins className="w-6 h-6 text-green-400 mr-2" />
-                  Earnings
-                </h2>
-                <Card className="bg-gradient-to-br from-green-900/30 to-green-800/30 border-green-700/50 backdrop-blur-sm">
-                  <CardContent className="p-6">
-                    <div className="text-center mb-4">
-                      <div className="text-3xl font-bold text-green-400 mb-2">847.5 METIS</div>
-                      <p className="text-slate-300 text-sm">Total Earned This Month</p>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between text-slate-300">
-                        <span>Completed Tasks:</span>
-                        <span className="text-green-400">+720 METIS</span>
-                      </div>
-                      <div className="flex justify-between text-slate-300">
-                        <span>Bonus Rewards:</span>
-                        <span className="text-green-400">+127.5 METIS</span>
-                      </div>
-                    </div>
-                    <Button className="w-full mt-4 bg-green-600 hover:bg-green-700">
-                      <Gift className="w-4 h-4 mr-2" />
-                      Claim Rewards
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
+                      </CardHeader>
+
+                      <CardContent className="space-y-4">
+                        <p className="text-slate-300 text-sm line-clamp-3">{dao.description}</p>
+
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="flex items-center space-x-2">
+                            <Target className="w-4 h-4 text-green-400" />
+                            <span className="text-slate-400">{dao.totalTasks} Tasks</span>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Users className="w-4 h-4 text-blue-400" />
+                            <span className="text-slate-400">{dao.members} Members</span>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Coins className="w-4 h-4 text-yellow-400" />
+                            <span className="text-slate-400">{formatReward(dao.totalRewards)} METIS</span>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="w-4 h-4 text-purple-400" />
+                            <span className="text-slate-400">{formatDate(dao.createdAt)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-700">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span className="text-green-400 text-sm">Active</span>
+                          </div>
+
+                          <div className="text-slate-400 text-xs">
+                            Creator: {dao.creator.slice(0, 6)}...{dao.creator.slice(-4)}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Users className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-white mb-2">No DAOs Available</h3>
+                  <p className="text-slate-400 mb-6">Be the first to create a DAO on ProofDAO!</p>
+                  <Button
+                    onClick={() => router.push("/create-dao")}
+                    className="bg-gradient-to-r from-blue-600 to-cyan-600"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First DAO
+                  </Button>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+          </TabsContent>
+
+          {userReputations.length > 0 && (
+            <TabsContent value="reputation" className="mt-6">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-white">Your Reputation NFTs</h3>
+                  <Button
+                    onClick={() => router.push("/reputation")}
+                    className="bg-gradient-to-r from-purple-600 to-blue-600"
+                  >
+                    View All
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {userReputations.slice(0, 6).map((tokenId) => (
+                    <ReputationNFTCard
+                      key={tokenId}
+                      tokenId={tokenId}
+                      contract={reputationContract}
+                      provider={provider}
+                      account={account}
+                      isOwner={true}
+                    />
+                  ))}
+                </div>
+              </div>
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
-    )
-  }
-  
+    </div>
+  )
+}

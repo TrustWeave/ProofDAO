@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useWriteContract, useWaitForTransactionReceipt } from "wagmi"
+import { ethers } from "ethers"
 import {
   ArrowLeft,
   ArrowRight,
@@ -47,6 +47,25 @@ interface DAOFormData {
   }>
 }
 
+// Network configuration - Add this to your constants file or here
+const NETWORK_CONFIG = {
+  chainId: '0x20A55', // 133717 in hex (Metis Sepolia)
+  chainName: 'Metis Sepolia Testnet',
+  nativeCurrency: {
+    name: 'Metis',
+    symbol: 'METIS',
+    decimals: 18,
+  },
+  rpcUrls: ['https://hyperion-testnet.metisdevops.link'], // Primary RPC
+}
+
+// Fallback RPC URLs in case primary fails
+const FALLBACK_RPC_URLS = [
+  'https://sepolia.metisdevops.link',
+  'https://sepolia.rpc.metis.io',
+  // Add more RPC URLs if available
+]
+
 export default function CreateDAOPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [isCreating, setIsCreating] = useState(false)
@@ -54,30 +73,420 @@ export default function CreateDAOPage() {
   const [showConfetti, setShowConfetti] = useState(false)
   const [transactionHash, setTransactionHash] = useState("")
   const [daoId, setDaoId] = useState("")
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null)
+  const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null)
+  const [contract, setContract] = useState<ethers.Contract | null>(null)
+  const [isWalletConnected, setIsWalletConnected] = useState(false)
+  const [networkError, setNetworkError] = useState<string | null>(null)
 
   const router = useRouter();
 
-  // Contract configuration
-  const contractAddress = CONTRACT_ADDRESS_DAO as `0x${string}`
+  // Contract configuration - Updated ABI to match your contract
+  const contractAddress = CONTRACT_ADDRESS_DAO || "0x42ac28db42f5be11b922f84893f3d4b960a28968"
   const contractABI = [
     {
-      "inputs": [
-        { "internalType": "string", "name": "name", "type": "string" },
-        { "internalType": "string", "name": "description", "type": "string" },
-        { "internalType": "string", "name": "metadataURI", "type": "string" }
-      ],
+      "type": "function",
       "name": "createDAO",
-      "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-      "stateMutability": "nonpayable",
-      "type": "function"
+      "inputs": [
+        {
+          "name": "name",
+          "type": "string",
+          "internalType": "string"
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "internalType": "string"
+        },
+        {
+          "name": "metadataURI",
+          "type": "string",
+          "internalType": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256",
+          "internalType": "uint256"
+        }
+      ],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
+      "name": "owner",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "event",
+      "name": "DAOCreated",
+      "inputs": [
+        {
+          "name": "daoId",
+          "type": "uint256",
+          "indexed": true,
+          "internalType": "uint256"
+        },
+        {
+          "name": "creator",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "indexed": false,
+          "internalType": "string"
+        }
+      ],
+      "anonymous": false
     }
   ]
 
-  // Wagmi hooks
-  const { writeContract, data: hash, error, isPending } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  })
+  // Function to switch to correct network
+  const switchToCorrectNetwork = async () => {
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: NETWORK_CONFIG.chainId }],
+      });
+    } catch (switchError: any) {
+      // This error code indicates that the chain has not been added to MetaMask
+      if (switchError.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [NETWORK_CONFIG],
+          });
+        } catch (addError) {
+          console.error('Error adding network:', addError);
+          throw new Error('Failed to add Metis Sepolia network to MetaMask');
+        }
+      } else {
+        throw switchError;
+      }
+    }
+  }
+
+  // Function to test RPC connection
+  const testRPCConnection = async (rpcUrl: string): Promise<ethers.JsonRpcProvider | null> => {
+    try {
+      const testProvider = new ethers.JsonRpcProvider(rpcUrl);
+      await testProvider.getBlockNumber(); // Test the connection
+      console.log(`RPC connection successful: ${rpcUrl}`);
+      return testProvider;
+    } catch (error) {
+      console.warn(`RPC connection failed for ${rpcUrl}:`, error);
+      return null;
+    }
+  }
+
+  // Function to get working RPC provider
+  const getWorkingProvider = async (): Promise<ethers.JsonRpcProvider | null> => {
+    for (const rpcUrl of FALLBACK_RPC_URLS) {
+      const provider = await testRPCConnection(rpcUrl);
+      if (provider) {
+        return provider;
+      }
+    }
+    return null;
+  }
+
+  // Function to test contract connection
+  const testContractConnection = async () => {
+    if (!contract || !provider || !signer) {
+      alert("Please connect your wallet first")
+      return
+    }
+
+    try {
+      console.log("Testing contract connection...")
+      
+      // Test basic contract call using provider (read-only)
+      const owner = await contract.owner()
+      console.log("Contract owner:", owner)
+      
+      // Test if we can encode a function call
+      const contractInterface = new ethers.Interface(contractABI)
+      const testData = contractInterface.encodeFunctionData("owner", [])
+      console.log("Test function data:", testData)
+      
+      // Test if we can call the owner function directly
+      try {
+        const ownerResult = await provider.call({
+          to: contractAddress,
+          data: testData
+        })
+        console.log("Owner call result:", ownerResult)
+        
+        // Decode the result
+        const decodedOwner = contractInterface.decodeFunctionResult("owner", ownerResult)
+        console.log("Decoded owner:", decodedOwner)
+      } catch (callError) {
+        console.error("Direct call to owner failed:", callError)
+      }
+      
+      // Test createDAO function encoding
+      const createDAOData = contractInterface.encodeFunctionData("createDAO", [
+        "Test DAO",
+        "Test Description",
+        "https://example.com/metadata"
+      ])
+      console.log("createDAO function data:", createDAOData)
+      
+      // Test with the actual form data
+      const actualFormData = contractInterface.encodeFunctionData("createDAO", [
+        formData.name,
+        formData.description,
+        "https://example.com/metadata"
+      ])
+      console.log("Actual form data encoding:", actualFormData)
+      
+      // Test if we can estimate gas for createDAO (this will fail if the function has issues)
+      try {
+        const gasEstimate = await provider.estimateGas({
+          to: contractAddress,
+          data: createDAOData,
+          from: await signer.getAddress()
+        })
+        console.log("Gas estimate for createDAO:", gasEstimate.toString())
+      } catch (gasError) {
+        console.error("Gas estimation failed:", gasError)
+      }
+      
+      // Check contract state
+      try {
+        const counters = await contract.getCurrentCounters()
+        console.log("Contract counters:", counters)
+        
+        // Test if we can read from the contract
+        const owner = await contract.owner()
+        console.log("Contract owner:", owner)
+        
+        // Test if we can read a non-existent DAO (should return default values)
+        try {
+          const dao = await contract.daos(1)
+          console.log("DAO 1 data:", dao)
+        } catch (daoError) {
+          console.warn("Could not read DAO 1:", daoError)
+        }
+        
+      } catch (error) {
+        console.warn("Could not get contract state:", error)
+      }
+      
+      alert("Contract connection successful! Owner: " + owner + "\nFunction encoding works!")
+      
+      // Additional contract verification
+      console.log("\n=== CONTRACT VERIFICATION ===")
+      try {
+        // Check if contract exists at address
+        const code = await provider.getCode(contractAddress)
+        console.log("Contract code length:", code.length)
+        console.log("Contract exists:", code !== "0x")
+        
+        if (code === "0x") {
+          alert("WARNING: No contract found at the specified address!")
+          return
+        }
+        
+        // Check network
+        const network = await provider.getNetwork()
+        console.log("Network:", network)
+        
+        // Check balance
+        const balance = await provider.getBalance(await signer.getAddress())
+        console.log("Signer balance:", ethers.formatEther(balance), "METIS")
+        
+      } catch (verifyError) {
+        console.error("Contract verification failed:", verifyError)
+      }
+      
+      // Ask user if they want to test a minimal transaction
+      const testMinimal = confirm("Would you like to test a minimal DAO creation transaction?")
+      if (testMinimal) {
+        try {
+          console.log("=== MINIMAL TRANSACTION TEST ===")
+          console.log("Contract address:", contractAddress)
+          console.log("Signer address:", await signer.getAddress())
+          
+          // Test 1: Simple owner call
+          console.log("\n1. Testing owner function...")
+          const ownerData = contractInterface.encodeFunctionData("owner", [])
+          const ownerResult = await provider.call({
+            to: contractAddress,
+            data: ownerData
+          })
+          console.log("Owner result:", ownerResult)
+          
+          // Test 2: Gas estimation
+          console.log("\n2. Testing gas estimation...")
+          const minimalData = contractInterface.encodeFunctionData("createDAO", [
+            "Test",
+            "Test", 
+            "https://example.com"
+          ])
+          console.log("Function data:", minimalData)
+          console.log("Function selector:", minimalData.slice(0, 10))
+          
+          const gasEstimate = await provider.estimateGas({
+            to: contractAddress,
+            data: minimalData,
+            from: await signer.getAddress()
+          })
+          console.log("Gas estimate:", gasEstimate.toString())
+          
+          // Test 3: Send transaction
+          console.log("\n3. Sending transaction...")
+          const feeData = await provider.getFeeData()
+          console.log("Gas price:", feeData.gasPrice?.toString())
+          
+          const testTx = await signer.sendTransaction({
+            to: contractAddress,
+            data: minimalData,
+            gasLimit: gasEstimate + BigInt(50000),
+            gasPrice: feeData.gasPrice
+          })
+          
+          console.log("Transaction sent:", testTx.hash)
+          console.log("=== TEST COMPLETE ===")
+          
+          alert("Test completed! Check console for details. Hash: " + testTx.hash)
+        } catch (error: any) {
+          console.error("=== TEST FAILED ===")
+          console.error("Error:", error)
+          console.error("Error code:", error.code)
+          console.error("Error reason:", error.reason)
+          console.error("Error message:", error.message)
+          console.error("Transaction data:", error.transaction)
+          console.error("Receipt:", error.receipt)
+          alert("Test failed! Check console for details.")
+        }
+      }
+    } catch (error: any) {
+      console.error("Contract test failed:", error)
+      alert("Contract test failed: " + (error.message || 'Unknown error'))
+    }
+  }
+
+  // Initialize ethers and connect wallet
+  useEffect(() => {
+    const initializeEthers = async () => {
+      try {
+        if (typeof window !== 'undefined' && window.ethereum) {
+          // First, try to get the network from MetaMask
+          const provider = new ethers.BrowserProvider(window.ethereum)
+          
+          try {
+            const network = await provider.getNetwork()
+            console.log('Current network:', network)
+            
+            // Check if we're on the correct network
+            if (network.chainId !== BigInt(parseInt(NETWORK_CONFIG.chainId, 16))) {
+              setNetworkError(`Please switch to Metis Sepolia network (Chain ID: ${parseInt(NETWORK_CONFIG.chainId, 16)})`)
+            } else {
+              setNetworkError(null)
+            }
+          } catch (networkError) {
+            console.warn('Could not get network from MetaMask, will try to switch later')
+          }
+          
+          setProvider(provider)
+          
+          // Check if already connected
+          const accounts = await provider.listAccounts()
+          if (accounts.length > 0) {
+            const signer = await provider.getSigner()
+            const contractInterface = new ethers.Interface(contractABI)
+            const contract = new ethers.Contract(contractAddress!, contractABI, signer)
+            setSigner(signer)
+            setContract(contract)
+            setIsWalletConnected(true)
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing ethers:", error)
+        setNetworkError("Failed to initialize wallet connection")
+      }
+    }
+
+    initializeEthers()
+  }, [])
+
+  // Connect wallet function with network switching
+  const connectWallet = async () => {
+    try {
+      if (!window.ethereum) {
+        alert("Please install MetaMask to create a DAO")
+        return
+      }
+
+      // First, switch to the correct network
+      await switchToCorrectNetwork()
+
+      // Request account access
+      await window.ethereum.request({ method: 'eth_requestAccounts' })
+      
+      // Create provider and signer
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      
+      // Verify we're on the correct network
+      const network = await provider.getNetwork()
+      console.log('Connected to network:', network)
+      
+      if (network.chainId !== BigInt(parseInt(NETWORK_CONFIG.chainId, 16))) {
+        throw new Error(`Wrong network. Please switch to Metis Sepolia (Chain ID: ${parseInt(NETWORK_CONFIG.chainId, 16)})`)
+      }
+
+      const signer = await provider.getSigner()
+      const contractInterface = new ethers.Interface(contractABI)
+      const contract = new ethers.Contract(contractAddress!, contractABI, signer)
+      
+      // Test contract connection
+      try {
+        // Try to call a view function or check if contract exists
+        const code = await provider.getCode(contractAddress!)
+        if (code === '0x') {
+          throw new Error('Contract not found at the specified address')
+        }
+        console.log('Contract verified at:', contractAddress)
+        
+        // Try to call a simple view function to verify the contract is working
+        const testContract = new ethers.Contract(contractAddress!, contractABI, provider)
+        try {
+          await testContract.owner()
+          console.log('Contract is accessible and working')
+        } catch (viewError) {
+          console.warn('View function call failed, but contract exists:', viewError)
+        }
+      } catch (contractError) {
+        console.error('Contract verification failed:', contractError)
+        throw new Error(`Contract not found or invalid at address: ${contractAddress}`)
+      }
+      
+      setProvider(provider)
+      setSigner(signer)
+      setContract(contract)
+      setIsWalletConnected(true)
+      setNetworkError(null)
+      
+      console.log('Wallet connected successfully')
+    } catch (error: any) {
+      console.error("Error connecting wallet:", error)
+      setNetworkError(error.message)
+      alert(`Error connecting wallet: ${error.message}`)
+    }
+  }
 
   const [formData, setFormData] = useState<DAOFormData>({
     name: "",
@@ -157,8 +566,43 @@ export default function CreateDAOPage() {
   }
 
   const handleCreateDAO = async () => {
+    if (!isWalletConnected || !contract || !provider) {
+      alert("Please connect your wallet first")
+      return
+    }
+
+    // Validate required fields
+    if (!formData.name.trim()) {
+      alert("DAO name is required")
+      return
+    }
+
+    if (!formData.description.trim()) {
+      alert("DAO description is required")
+      return
+    }
+
     try {
       setIsCreating(true)
+
+      // Verify network again before transaction
+      const network = await provider.getNetwork()
+      if (network.chainId !== BigInt(parseInt(NETWORK_CONFIG.chainId, 16))) {
+        throw new Error('Please switch to Metis Sepolia network')
+      }
+
+      // Check account balance
+      const balance = await provider.getBalance(await signer!.getAddress())
+      console.log('Account balance:', ethers.formatEther(balance), 'METIS')
+      
+      if (balance === BigInt(0)) {
+        throw new Error('Insufficient balance. You need some METIS tokens to pay for gas.')
+      }
+      
+      // Check if balance is too low (less than 0.01 METIS)
+      if (balance < ethers.parseEther("0.01")) {
+        throw new Error('Balance too low. You need at least 0.01 METIS tokens to pay for gas.')
+      }
 
       // Create metadata object
       const metadata = {
@@ -171,41 +615,206 @@ export default function CreateDAOPage() {
         version: "1.0.0"
       }
 
-      const res = await axios.post(
-        'https://api.pinata.cloud/pinning/pinJSONToIPFS',
-        metadata,
-        {
-          headers: {
-            pinata_api_key: PINATA_API_KEY,
-            pinata_secret_api_key: PINATA_API_SECRET,
-          },
-        }
-      )
+      console.log("Uploading metadata to IPFS...")
 
-      const metadataCID = res.data.IpfsHash;
-      const metadataURI = `https://gateway.pinata.cloud/ipfs/${metadataCID}`
+      // Upload to IPFS
+      let metadataURI: string;
+      if (!PINATA_API_KEY || !PINATA_API_SECRET) {
+        console.warn('Pinata API keys not configured, using fallback metadata URI')
+        metadataURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`
+        console.log("Using fallback metadata URI:", metadataURI)
+      } else {
+        const res = await axios.post(
+          'https://api.pinata.cloud/pinning/pinJSONToIPFS',
+          metadata,
+          {
+            headers: {
+              pinata_api_key: PINATA_API_KEY,
+              pinata_secret_api_key: PINATA_API_SECRET,
+            },
+          }
+        )
 
-      console.log(metadataURI);
+        const metadataCID = res.data.IpfsHash;
+        metadataURI = `https://gateway.pinata.cloud/ipfs/${metadataCID}`
 
-      // Call the smart contract using wagmi
-      writeContract({
-        address: contractAddress,
-        abi: contractABI,
-        functionName: 'createDAO',
-        args: [formData.name, formData.description, metadataURI],
+        console.log("Metadata uploaded:", metadataURI);
+      }
+
+      // Validate form data
+      if (!formData.name || formData.name.trim() === "") {
+        throw new Error("DAO name is required")
+      }
+      
+      if (!formData.description || formData.description.trim() === "") {
+        throw new Error("DAO description is required")
+      }
+      
+      // Validate metadataURI
+      if (!metadataURI) {
+        throw new Error("Failed to create metadata URI")
+      }
+      
+      console.log("Form validation passed:")
+      console.log("- Name:", formData.name)
+      console.log("- Description:", formData.description)
+      console.log("- Metadata URI length:", metadataURI.length)
+      console.log("- Metadata URI preview:", metadataURI.substring(0, 100) + "...")
+      
+      // Check if metadataURI is too long (should be reasonable for a string parameter)
+      if (metadataURI.length > 1000) {
+        console.warn("Metadata URI is very long, this might cause issues")
+      }
+
+      // Validate contract address
+      if (!contractAddress) {
+        throw new Error("Contract address is not configured")
+      }
+
+      console.log("Creating DAO with contract at:", contractAddress)
+      console.log("Signer address:", await signer!.getAddress())
+      console.log("Parameters:", {
+        name: formData.name,
+        description: formData.description,
+        metadataURI
       })
 
-    } catch (error) {
-      console.error("Error creating DAO:", error)
-      setIsCreating(false)
-    }
-  }
+      // Get current gas price
+      const feeData = await provider.getFeeData()
+      console.log("Current gas price:", feeData.gasPrice?.toString())
 
-  // Handle transaction confirmation
-  useEffect(() => {
-    if (isConfirmed && hash) {
-      setTransactionHash(hash)
-      setDaoId(Math.floor(Math.random() * 10000).toString()) // In real app, parse from event logs
+      // Estimate gas first
+      let gasEstimate
+      try {
+        gasEstimate = await contract.createDAO.estimateGas(
+          formData.name,
+          formData.description,
+          metadataURI
+        )
+        console.log("Estimated gas:", gasEstimate.toString())
+      } catch (estimateError) {
+        console.warn("Gas estimation failed, using fallback:", estimateError)
+        gasEstimate = BigInt(1000000) // Fallback gas limit
+      }
+      
+      // Ensure we have a reasonable gas limit
+      const finalGasLimit = gasEstimate + BigInt(100000) // Add more buffer
+      console.log("Final gas limit:", finalGasLimit.toString())
+
+      // Call the smart contract with estimated gas
+      console.log("Calling createDAO with parameters:", {
+        name: formData.name,
+        description: formData.description,
+        metadataURI: metadataURI
+      })
+      
+      // Encode the function call data manually to debug
+      console.log("Contract interface:", contract.interface)
+      console.log("Contract address:", contract.target)
+      console.log("Contract ABI:", contractABI)
+      
+      // Create a new interface manually to ensure it works
+      const contractInterface = new ethers.Interface(contractABI)
+      console.log("Manual interface:", contractInterface)
+      
+      const functionData = contractInterface.encodeFunctionData("createDAO", [
+        formData.name,
+        formData.description,
+        metadataURI
+      ])
+      console.log("Encoded function data:", functionData)
+      
+      // Verify the function selector
+      const expectedSelector = "0xcfb83a8d"
+      const actualSelector = functionData.slice(0, 10)
+      console.log("Expected selector:", expectedSelector)
+      console.log("Actual selector:", actualSelector)
+      
+      if (actualSelector !== expectedSelector) {
+        throw new Error(`Function selector mismatch. Expected: ${expectedSelector}, Got: ${actualSelector}`)
+      }
+      
+      if (!functionData || functionData === "0x") {
+        throw new Error("Function data is empty - encoding failed")
+      }
+      
+      // Test the encoding with simple parameters
+      const testData = contractInterface.encodeFunctionData("createDAO", [
+        "Test DAO",
+        "Test Description", 
+        "https://example.com/metadata"
+      ])
+      console.log("Test function data:", testData)
+      
+      if (!testData || testData === "0x") {
+        throw new Error("Test function encoding failed")
+      }
+      
+      // Try calling the function with explicit transaction data
+      console.log("Sending transaction with data:", functionData)
+      console.log("Transaction params:", {
+        to: contractAddress,
+        data: functionData,
+        gasLimit: gasEstimate + BigInt(50000),
+        gasPrice: feeData.gasPrice
+      })
+      
+      const tx = await signer!.sendTransaction({
+        to: contractAddress,
+        data: functionData,
+        gasLimit: finalGasLimit, // Use the final gas limit with more buffer
+        gasPrice: feeData.gasPrice // Use current network gas price
+      })
+      
+      console.log("Transaction sent:", tx.hash)
+      setTransactionHash(tx.hash)
+
+      // Wait for transaction to be mined with timeout
+      console.log("Waiting for transaction confirmation...")
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Transaction timeout - please check your transaction hash")), 120000) // 2 minutes timeout
+      })
+      
+      const receiptPromise = tx.wait(1) // Wait for 1 confirmation
+      const receipt = await Promise.race([receiptPromise, timeoutPromise]) as any
+      console.log("Transaction confirmed:", receipt)
+      
+      if (receipt.status === 0) {
+        throw new Error("Transaction failed on-chain")
+      }
+
+      // Parse the events to get the DAO ID
+      let newDaoId = "0";
+      if (receipt.logs && receipt.logs.length > 0) {
+        try {
+          // Look for DAOCreated event
+          for (const log of receipt.logs) {
+            try {
+              const parsedLog = contract.interface.parseLog({
+                topics: log.topics,
+                data: log.data
+              })
+              
+              if (parsedLog && parsedLog.name === 'DAOCreated') {
+                newDaoId = parsedLog.args.daoId.toString()
+                console.log("DAO ID from event:", newDaoId)
+                break
+              }
+            } catch (parseError) {
+              // Skip logs that can't be parsed
+              continue
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing events:", error)
+          // Fallback - use a placeholder ID
+          newDaoId = Math.floor(Math.random() * 10000).toString()
+        }
+      }
+
+      setDaoId(newDaoId)
       setIsCreating(false)
       setIsSuccess(true)
       setShowConfetti(true)
@@ -213,18 +822,35 @@ export default function CreateDAOPage() {
       
       // Hide confetti after 3 seconds
       setTimeout(() => setShowConfetti(false), 3000)
-    }
-  }, [isConfirmed, hash])
 
-  // Handle errors
-  useEffect(() => {
-    if (error) {
-      console.error("Transaction error:", error)
+    } catch (error: any) {
+      console.error("Error creating DAO:", error)
       setIsCreating(false)
-      alert(`Error creating DAO: ${error.message}`)
+      
+      // Handle different types of errors
+      if (error.code === 'ACTION_REJECTED') {
+        alert("Transaction was rejected by user")
+      } else if (error.code === 'INSUFFICIENT_FUNDS') {
+        alert("Insufficient funds for transaction. Please ensure you have enough METIS tokens.")
+      } else if (error.code === 'NETWORK_ERROR') {
+        alert("Network error. Please check your internet connection and try again.")
+      } else if (error.code === 'TIMEOUT') {
+        alert("Transaction timed out. Please try again.")
+      } else if (error.message && error.message.includes('timeout')) {
+        alert("Transaction timed out. Please check your transaction hash and try again.")
+      } else if (error.message && error.message.includes('Contract not found')) {
+        alert("Contract not found. Please check the contract address configuration.")
+      } else if (error.message && error.message.includes('Wrong network')) {
+        alert("Please switch to Metis Sepolia testnet in your wallet.")
+      } else if (error.reason) {
+        alert(`Transaction failed: ${error.reason}`)
+      } else {
+        alert(`Error creating DAO: ${error.message || 'Unknown error occurred'}`)
+      }
     }
-  }, [error])
+  }
 
+  // Rest of your render methods remain the same...
   const renderStep = () => {
     switch (currentStep) {
       case 1:
@@ -464,6 +1090,42 @@ export default function CreateDAOPage() {
               <p className="text-slate-300">Review your DAO configuration before creation</p>
             </div>
 
+            {/* Network Error Warning */}
+            {networkError && (
+              <Card className="bg-red-900/20 border-red-700/50">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-red-400 font-semibold mb-2">Network Issue</h3>
+                      <p className="text-red-300 text-sm">{networkError}</p>
+                    </div>
+                    <Button onClick={connectWallet} className="bg-red-600 hover:bg-red-700">
+                      Fix Network
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Wallet Connection Status */}
+            {!isWalletConnected && (
+              <Card className="bg-orange-900/20 border-orange-700/50">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-orange-400 font-semibold mb-2">Wallet Not Connected</h3>
+                      <p className="text-orange-300 text-sm">
+                        You need to connect your wallet to create a DAO
+                      </p>
+                    </div>
+                    <Button onClick={connectWallet} className="bg-orange-600 hover:bg-orange-700">
+                      Connect Wallet
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid md:grid-cols-2 gap-6">
               <Card className="bg-slate-800/50 border-slate-700">
                 <CardHeader>
@@ -546,11 +1208,26 @@ export default function CreateDAOPage() {
                     <p className="text-slate-300 text-sm">
                       Your DAO will be deployed to:{" "}
                       <code className="bg-slate-800 px-2 py-1 rounded text-blue-400">
-                        0x42AC28dB42F5BE11B922f84893F3D4b960a28968
+                        {contractAddress || "Contract address not configured"}
                       </code>
                     </p>
+                    <p className="text-slate-400 text-xs mt-1">
+                      Network: Metis Sepolia Testnet (Chain ID: {parseInt(NETWORK_CONFIG.chainId, 16)})
+                    </p>
                   </div>
-                  <Shield className="w-8 h-8 text-blue-400" />
+                  <div className="flex flex-col items-end space-y-2">
+                    <Shield className="w-8 h-8 text-blue-400" />
+                    {isWalletConnected && (
+                      <Button 
+                        onClick={testContractConnection}
+                        size="sm"
+                        variant="outline"
+                        className="border-blue-600 text-blue-400 hover:bg-blue-900/20"
+                      >
+                        Test Contract
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -601,7 +1278,16 @@ export default function CreateDAOPage() {
                   <div className="flex justify-between">
                     <span className="text-slate-400">Transaction:</span>
                     <span className="text-blue-400 font-mono text-sm">
-                      {transactionHash ? `${transactionHash.slice(0, 6)}...${transactionHash.slice(-4)}` : "..."}
+                      {transactionHash ? (
+                        <a 
+                          href={`https://sepolia-andromeda-explorer.metis.io/tx/${transactionHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          {transactionHash.slice(0, 6)}...{transactionHash.slice(-4)}
+                        </a>
+                      ) : "..."}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -609,19 +1295,26 @@ export default function CreateDAOPage() {
                     <span className="text-white">Metis Sepolia</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Gas Used:</span>
-                    <span className="text-white">0.0023 METIS</span>
+                    <span className="text-slate-400">Status:</span>
+                    <span className="text-green-400">Confirmed</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+              <Button 
+                onClick={() => router.push(`/dao/${daoId}`)}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              >
                 <Sparkles className="w-4 h-4 mr-2" />
                 View DAO Dashboard
               </Button>
-              <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800 bg-transparent">
+              <Button 
+                onClick={() => window.location.reload()}
+                variant="outline" 
+                className="border-slate-600 text-slate-300 hover:bg-slate-800 bg-transparent"
+              >
                 Create Another DAO
               </Button>
             </div>
@@ -642,7 +1335,7 @@ export default function CreateDAOPage() {
       case 3:
         return true
       case 4:
-        return true
+        return isWalletConnected && !networkError
       default:
         return false
     }
@@ -717,13 +1410,13 @@ export default function CreateDAOPage() {
             ) : (
               <Button
                 onClick={handleCreateDAO}
-                disabled={isPending || isConfirming || !canProceed()}
+                disabled={isCreating || !canProceed()}
                 className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
               >
-                {isPending || isConfirming ? (
+                {isCreating ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                    {isPending ? "Confirm in Wallet..." : "Creating DAO..."}
+                    Creating DAO...
                   </>
                 ) : (
                   <>
