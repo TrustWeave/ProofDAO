@@ -579,18 +579,18 @@ export default function UserProfilePage() {
         {/* Tabs */}
         <Tabs defaultValue="submissions">
           <TabsList className="bg-slate-800/50 border-slate-700">
-            <TabsTrigger value="submissions" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="submissions" className="data-[state=active]:bg-slate-700 text-white">
               Submissions ({submissions.length})
             </TabsTrigger>
-            <TabsTrigger value="daos" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="daos" className="data-[state=active]:bg-slate-700 text-white">
               Created DAOs ({userDAOs.length})
             </TabsTrigger>
             {userReputations.length > 0 && (
-              <TabsTrigger value="reputation" className="data-[state=active]:bg-slate-700">
+              <TabsTrigger value="reputation" className="data-[state=active]:bg-slate-700 text-white">
                 Reputation NFTs ({userReputations.length})
               </TabsTrigger>
             )}
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-slate-700 text-white">
               Analytics
             </TabsTrigger>
           </TabsList>
@@ -641,7 +641,7 @@ export default function UserProfilePage() {
                               size="sm"
                               onClick={() => router.push(`/task/${submission.taskId}`)}
                               variant="outline"
-                              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                              className="border-slate-600 text-slate-800 hover:bg-slate-700 hover:text-slate-300"
                             >
                               View Task
                             </Button>
@@ -650,7 +650,7 @@ export default function UserProfilePage() {
                                 size="sm"
                                 onClick={() => window.open(submission.workURI, "_blank")}
                                 variant="outline"
-                                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                                className="border-slate-600 text-slate-800 hover:bg-slate-700 hover:text-slate-300"
                               >
                                 <ExternalLink className="w-4 h-4 mr-1" />
                                 View Work

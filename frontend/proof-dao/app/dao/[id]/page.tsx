@@ -1502,7 +1502,7 @@ export default function DAODashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <Button onClick={() => router.push("/dao")} variant="ghost" className="text-slate-300 hover:text-white">
+              <Button onClick={() => router.push("/dao")} variant="ghost" className="text-slate-300 hover:text-black">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to DAOs
               </Button>
@@ -1915,25 +1915,25 @@ export default function DAODashboard() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-slate-800/50 border-slate-700">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-slate-700 text-white">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="tasks" className="data-[state=active]:bg-slate-700 text-white">
               Tasks ({tasks.length})
             </TabsTrigger>
-            <TabsTrigger value="proposals" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="proposals" className="data-[state=active]:bg-slate-700 text-white">
               Proposals ({proposals.length})
             </TabsTrigger>
-            <TabsTrigger value="members" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="members" className="data-[state=active]:bg-slate-700 text-white">
               Members ({daoGovernance?.members.length || dao.members?.length || 1})
             </TabsTrigger>
-            <TabsTrigger value="governance" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="governance" className="data-[state=active]:bg-slate-700 text-white">
               Governance
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-slate-700 text-white">
               Analytics
             </TabsTrigger>
-            <TabsTrigger value="submissions" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="submissions" className="data-[state=active]:bg-slate-700 text-white">
               Submissions ({submissions.length})
             </TabsTrigger>
           </TabsList>

@@ -706,7 +706,7 @@ export default function TaskDetailsPage() {
                 <Button
                   onClick={() => router.push(`/dao/${dao.id}`)}
                   variant="outline"
-                  className="border-slate-600 text-slate-300 hover:bg-slate-800"
+                  className="border-slate-600 text-slate-800 hover:bg-slate-800 hover:text-slate-300"
                 >
                   <Shield className="w-4 h-4 mr-2" />
                   {dao.name}
@@ -796,10 +796,10 @@ export default function TaskDetailsPage() {
         {/* Tabs */}
         <Tabs defaultValue="details">
           <TabsList className="bg-slate-800/50 border-slate-700">
-            <TabsTrigger value="details" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="details" className="data-[state=active]:bg-slate-700 text-white">
               Task Details
             </TabsTrigger>
-            <TabsTrigger value="submissions" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="submissions" className="data-[state=active]:bg-slate-700 text-white">
               Submissions ({submissions.length})
             </TabsTrigger>
           </TabsList>
@@ -899,7 +899,7 @@ export default function TaskDetailsPage() {
                     <Button
                       onClick={() => router.push(`/dao/${dao.id}`)}
                       variant="outline"
-                      className="w-full border-slate-600 text-slate-300 hover:bg-slate-800"
+                      className="w-full border-slate-600 text-slate-800 hover:bg-slate-800 hover:text-slate-300"
                     >
                       View DAO
                     </Button>

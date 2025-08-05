@@ -462,13 +462,13 @@ export default function DashboardPage() {
               <span className="text-2xl font-bold text-white">ProofDAO</span>
             </div>
             <div className="flex items-center space-x-4">
-              <Button onClick={() => router.push("/dao")} variant="ghost" className="text-slate-300 hover:text-white">
+              <Button onClick={() => router.push("/dao")} variant="ghost" className="text-slate-300 hover:text-black">
                 Browse DAOs
               </Button>
               <Button
                 onClick={() => router.push("/reputation")}
                 variant="ghost"
-                className="text-slate-300 hover:text-white"
+                className="text-slate-300 hover:text-black"
               >
                 <Trophy className="w-4 h-4 mr-2" />
                 Reputation
@@ -607,13 +607,13 @@ export default function DashboardPage() {
         {/* Tabs */}
         <Tabs defaultValue="overview">
           <TabsList className="bg-slate-800/50 border-slate-700">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-slate-700 text-white">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="tasks" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="tasks" className="data-[state=active]:bg-slate-700 text-white">
               Recent Tasks
             </TabsTrigger>
-            <TabsTrigger value="daos" className="data-[state=active]:bg-slate-700">
+            <TabsTrigger value="daos" className="data-[state=active]:bg-slate-700 text-white">
               Recent DAOs
             </TabsTrigger>
             {userReputations.length > 0 && (

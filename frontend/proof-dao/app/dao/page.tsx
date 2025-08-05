@@ -320,7 +320,7 @@ export default function DAOListPage() {
               <Button
                 onClick={() => router.push("/dashboard")}
                 variant="ghost"
-                className="text-slate-300 hover:text-white"
+                className="text-slate-300 hover:text-black"
               >
                 Dashboard
               </Button>
@@ -467,7 +467,7 @@ export default function DAOListPage() {
                   className={`${
                     selectedCategory === category
                       ? "bg-gradient-to-r from-blue-600 to-cyan-600"
-                      : "border-slate-600 text-slate-300 hover:bg-slate-800"
+                      : "border-slate-600 text-slate-800 hover:bg-slate-800"
                   }`}
                 >
                   {category}

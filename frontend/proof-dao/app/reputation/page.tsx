@@ -45,7 +45,7 @@ export default function ReputationPage() {
               <Button
                 onClick={() => router.push("/dashboard")}
                 variant="ghost"
-                className="text-slate-300 hover:text-white"
+                className="text-slate-300 hover:text-black"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard

@@ -1205,12 +1205,6 @@ export default function CreateDAOPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-white font-semibold mb-2">Smart Contract Deployment</h3>
-                    <p className="text-slate-300 text-sm">
-                      Your DAO will be deployed to:{" "}
-                      <code className="bg-slate-800 px-2 py-1 rounded text-blue-400">
-                        {contractAddress || "Contract address not configured"}
-                      </code>
-                    </p>
                     <p className="text-slate-400 text-xs mt-1">
                       Network: Metis Sepolia Testnet (Chain ID: {parseInt(NETWORK_CONFIG.chainId, 16)})
                     </p>

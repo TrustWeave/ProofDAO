@@ -221,7 +221,7 @@ export default function HomePage() {
               <a href="/dashboard" className="text-slate-300 hover:text-white transition-colors">
                 Dashboard
               </a>
-              <a href="/profile/" className="text-slate-300 hover:text-white transition-colors">
+              <a href={`/profile/${walletAddress}`} className="text-slate-300 hover:text-white transition-colors">
                 My Profile
               </a>
               <Button onClick={handleLaunch} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
