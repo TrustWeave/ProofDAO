@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@lazai-labs/alith-darwin-arm64": "^0.11.1",
     "@pinata/sdk": "^2.1.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",
@@ -32,6 +31,9 @@
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.3.1",
     "wagmi": "^2.16.1"
+  },
+  "optionalDependencies": {
+    "@lazai-labs/alith-darwin-arm64": "^0.11.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
