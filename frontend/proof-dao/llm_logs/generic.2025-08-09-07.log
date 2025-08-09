@@ -1,0 +1,720 @@
+  2025-08-09T07:39:58.494972Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 314
+  messages:
+
+[1mSystem[0m:
+"You are an expert task reviewer for a decentralized autonomous organization (DAO). \n      Your role is to objectively evaluate submitted work against task requirements. You must:\n      \n      1. Carefully analyze task requirements and submitted work\n      2. Check for completeness and accuracy\n     ..."
+
+[1mUser[0m:
+"\n    TASK DETAILS:\n    Title: Grow some flowers in the infinite garden\n    Description: like roses\n    Requirements: just grow flowers\n    Skills: \n    Reward: 1000000000000000 METIS\n    \n    SUBMISSION DETAILS:\n    Work URL: link\n    Proof/Description: grown\n    Submitted: 2025-08-05T19:20:26.000Z\n..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:40:00.084846Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"score\": 20,\n  \"meetsRequirements\": false,\n  \"completeness\": 20,\n  \"quality\": 0,\n  \"keyIssues\": [\"Lack of specificity in the submission\", \"No clear evidence of flowers being grown\", \"Unclear what type of flowers were grown (only 'like roses' was specified)\"],\n  \"strengths\": [],\n  \"recommendation\": \"NEEDS_REVISION\"\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.590173833s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 317
+    completion_tokens: 94
+    total_tokens: 411
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:40:00.221739Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 215
+  messages:
+
+[1mSystem[0m:
+"You are a quality assessment specialist for blockchain development tasks.\n      You evaluate submissions across multiple dimensions:\n      \n      - Code quality and best practices\n      - Documentation completeness\n      - Test coverage and functionality\n      - Innovation and creativity\n      - Pro..."
+
+[1mUser[0m:
+"\n    Assess the quality of this blockchain/Web3 submission:\n    \n    TASK: Grow some flowers in the infinite garden\n    REQUIREMENTS: just grow flowers\n    SUBMISSION URL: link\n    DESCRIPTION: grown\n    \n    Rate each dimension (0-100) and respond with ONLY valid JSON:\n    {\n      \"completeness\": <..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:40:01.801789Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n\"completeness\": 20,\n\"accuracy\": 30,\n\"presentation\": 10,\n\"innovation\": 10,\n\"overallQuality\": 25,\n\"technicalDepth\": 20,\n\"documentation\": 5,\n\"bestPractices\": 10\n}\n\nExplanation:\n\n* Completeness: 20 - The submission lacks clear implementation details and does not demonstrate a clear understanding of the task. The URL provided does not provide any insight into the implementation.\n* Accuracy: 30 - It's unclear how the submission meets the task requirements since there's no code or implementation details provided.\n* Presentation: 10 - The description \"grown\" is vague and doesn't provide any meaningful information about the submission.\n* Innovation: 10 - There is no apparent innovation or creativity in the submission.\n* Overall Quality: 25 - The submission lacks substance and clarity, making it difficult to assess its quality.\n* Technical Depth: 20 - There is no technical depth demonstrated in the submission since there's no code or implementation details provided.\n* Documentation: 5 - The submission lacks any meaningful documentation or explanation of the implementation.\n* Best Practices: 10 - It's unclear if the submission follows best practices since there's no code or implementation details provided."
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.580277459s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 218
+    completion_tokens: 255
+    total_tokens: 473
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:40:01.936479Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 283
+  messages:
+
+[1mSystem[0m:
+"You are a fraud detection specialist for DAO task submissions.\n      Your role is to identify potentially fraudulent or low-effort submissions:\n      \n      - Detect plagiarized or copied content\n      - Identify AI-generated submissions without disclosure\n      - Flag incomplete or minimal effort w..."
+
+[1mUser[0m:
+"\n    Analyze this submission for potential fraud or gaming:\n    \n    TASK REQUIREMENTS: just grow flowers\n    SUBMISSION URL: link\n    PROOF DATA: grown\n    CONTRIBUTOR: 0x898714D614d247fCC10e45E8641b4d3f077eECEb\n    \n    Look for:\n    - Minimal effort or incomplete work\n    - Potential plagiarism i..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:40:03.453167Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"riskScore\": 60,\n  \"suspiciousFlags\": [\"minimalEffort\", \"lackingSpecificity\"],\n  \"confidence\": 0.7,\n  \"requiresHumanReview\": true,\n  \"evidencePoints\": [\"PROOF DATA: grown is too vague\", \"SUBMISSION URL: link does not provide concrete evidence\"]\n}\n\nNote: This assessment is based on the provided information and may change with additional context or evidence.\n\nReasoning:\n\n* The submission seems to lack specificity and detail, with the PROOF DATA being a single word \"grown\" which may indicate minimal effort or incomplete work.\n* The SUBMISSION URL does not provide concrete evidence of the task completion, which raises suspicions.\n* There is no obvious plagiarism or AI-generated content detected, but the lack of detail and specificity in the submission may warrant further human review.\n* The task requirements are vague, which may contribute to the ambiguity of the submission, but the contributor's response does not provide sufficient clarity.\n* No suspicious timing or patterns are detected based on the provided information."
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.516937625s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 286
+    completion_tokens: 216
+    total_tokens: 502
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:40:03.585968Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 201
+  messages:
+
+[1mSystem[0m:
+"You are a constructive feedback specialist for DAO contributors.\n      Generate helpful, encouraging, and specific feedback that:\n      \n      - Highlights what was done well\n      - Identifies specific areas for improvement\n      - Provides actionable suggestions\n      - Maintains a supportive tone..."
+
+[1mUser[0m:
+"\n    Generate constructive feedback for this DAO submission:\n    \n    TASK: Grow some flowers in the infinite garden\n    REQUIREMENTS: just grow flowers\n    SUBMISSION: grown\n    \n    Provide encouraging but honest feedback. Respond with ONLY valid JSON:\n    {\n      \"positiveFeedback\": \"What was don..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:40:05.048491Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"positiveFeedback\": \"I love the enthusiasm and creativity behind your submission! It's great to see you taking the initiative to contribute to the infinite garden.\",\n  \"improvementAreas\": [\n    \"Clarify the type and quantity of flowers grown\",\n    \"Include a brief description or visual representation of the grown flowers\"\n  ],\n  \"specificSuggestions\": [\n    \"Consider adding a specific type of flower that aligns with the infinite garden's theme, such as 'grown 5 rare, glowing moonflowers'\",\n    \"Upload a screenshot or image of the grown flowers to provide a visual representation of your work\"\n  ],\n  \"encouragement\": \"Your contribution is valued, and with a few tweaks, it can really shine! Keep experimenting and pushing the boundaries of what's possible in the infinite garden.\",\n  \"nextSteps\": \"Please revise your submission to include more details about the flowers you grew, and feel free to ask for feedback or guidance from the community if needed.\"\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.462725041s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 204
+    completion_tokens: 203
+    total_tokens: 407
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:44:18.652901Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 330
+  messages:
+
+[1mSystem[0m:
+"You are an expert task reviewer for a decentralized autonomous organization (DAO). \n      Your role is to objectively evaluate submitted work against task requirements. You must:\n      \n      1. Carefully analyze task requirements and submitted work\n      2. Check for completeness and accuracy\n     ..."
+
+[1mUser[0m:
+"\n    TASK DETAILS:\n    Title: Grow some flowers in the infinite garden\n    Description: like roses\n    Requirements: just grow flowers\n    Skills: \n    Reward: 1000000000000000 METIS\n    \n    SUBMISSION DETAILS:\n    Work URL: link\n    Proof/Description: grown\n    Submitted: 2025-08-05T19:20:26.000Z\n..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:44:19.935240Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"score\": 50,\n  \"meetsRequirements\": true,\n  \"completeness\": 80,\n  \"quality\": 40,\n  \"keyIssues\": [\"Lack of specific details about the flowers\", \"No visual evidence provided\"],\n  \"strengths\": [\"Submission is on time\", \"Effort to grow flowers is acknowledged\"],\n  \"recommendation\": \"NEEDS_REVISION\"\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.282656625s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 333
+    completion_tokens: 87
+    total_tokens: 420
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:44:20.074499Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 245
+  messages:
+
+[1mSystem[0m:
+"You are a quality assessment specialist for blockchain development tasks.\n      You evaluate submissions across multiple dimensions:\n      \n      - Code quality and best practices\n      - Documentation completeness\n      - Test coverage and functionality\n      - Innovation and creativity\n      - Pro..."
+
+[1mUser[0m:
+"\n    Assess the quality of this blockchain/Web3 submission:\n    \n    TASK: Grow some flowers in the infinite garden\n    REQUIREMENTS: just grow flowers\n    SUBMISSION URL: link\n    DESCRIPTION: grown\n    \n    Rate each dimension (0-100) and respond with ONLY valid JSON (no markdown, no explanations)..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:44:20.943199Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"completeness\": 30,\n  \"accuracy\": 20,\n  \"presentation\": 10,\n  \"innovation\": 40,\n  \"overallQuality\": 50,\n  \"technicalDepth\": 20,\n  \"documentation\": 0,\n  \"bestPractices\": 10\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 868.942667ms
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 248
+    completion_tokens: 66
+    total_tokens: 314
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:44:21.076482Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 313
+  messages:
+
+[1mSystem[0m:
+"You are a fraud detection specialist for DAO task submissions.\n      Your role is to identify potentially fraudulent or low-effort submissions:\n      \n      - Detect plagiarized or copied content\n      - Identify AI-generated submissions without disclosure\n      - Flag incomplete or minimal effort w..."
+
+[1mUser[0m:
+"\n    Analyze this submission for potential fraud or gaming:\n    \n    TASK REQUIREMENTS: just grow flowers\n    SUBMISSION URL: link\n    PROOF DATA: grown\n    CONTRIBUTOR: 0x898714D614d247fCC10e45E8641b4d3f077eECEb\n    \n    Look for:\n    - Minimal effort or incomplete work\n    - Potential plagiarism i..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:44:21.851689Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"riskScore\": 60,\n  \"suspiciousFlags\": [\"incompleteWork\", \"requirementMismatch\"],\n  \"confidence\": 0.8,\n  \"requiresHumanReview\": true,\n  \"evidencePoints\": [\"PROOF DATA lacks detail\", \"SUBMISSION URL is generic\"]\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 775.481583ms
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 316
+    completion_tokens: 65
+    total_tokens: 381
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:44:21.985964Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 231
+  messages:
+
+[1mSystem[0m:
+"You are a constructive feedback specialist for DAO contributors.\n      Generate helpful, encouraging, and specific feedback that:\n      \n      - Highlights what was done well\n      - Identifies specific areas for improvement\n      - Provides actionable suggestions\n      - Maintains a supportive tone..."
+
+[1mUser[0m:
+"\n    Generate constructive feedback for this DAO submission:\n    \n    TASK: Grow some flowers in the infinite garden\n    REQUIREMENTS: just grow flowers\n    SUBMISSION: grown\n    \n    Provide encouraging but honest feedback. Respond with ONLY valid JSON (no markdown, no explanations):\n    {\n      \"p..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:44:23.818645Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"positiveFeedback\": \"I love the simplicity and enthusiasm behind your submission!\",\n  \"improvementAreas\": [\"Providing more specific details about the flowers grown\", \"Including visual evidence or descriptions of the flowers\"],\n  \"specificSuggestions\": [\"Consider adding a brief description of the type of flowers, their colors, or any unique features\", \"Take a screenshot or create an illustration of the flowers to showcase your work\"],\n  \"encouragement\": \"Your willingness to participate and grow flowers in the infinite garden is truly appreciated! Don't be discouraged by any imperfections - we're all here to learn and improve together.\",\n  \"nextSteps\": \"For your next submission, try to include more details about your process and the outcome. This will help us better understand your work and provide more accurate feedback.\"\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.83289925s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 234
+    completion_tokens: 166
+    total_tokens: 400
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:52:47.672205Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 338
+  messages:
+
+[1mSystem[0m:
+"You are an expert task reviewer for a decentralized autonomous organization (DAO). \n      Your role is to objectively evaluate submitted work against task requirements. You must:\n      \n      1. Carefully analyze task requirements and submitted work\n      2. Check for completeness and accuracy\n     ..."
+
+[1mUser[0m:
+"\n    TASK DETAILS:\n    Title: Cook somethin\n    Description: cooking\n    Requirements: so we can say bro really cooked \n    Skills: \n    Reward: 1000000000000000 METIS\n    \n    SUBMISSION DETAILS:\n    Work URL: https://proof-dao.vercel.app/\n    Proof/Description: I cooked\n    Submitted: 2025-08-05T1..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:52:49.159478Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"score\": 30,\n  \"meetsRequirements\": false,\n  \"completeness\": 20,\n  \"quality\": 10,\n  \"keyIssues\": [\"lack of detail\", \"no evidence of cooking\", \"generic description\"],\n  \"strengths\": [\"provided a url\"],\n  \"recommendation\": \"NEEDS_REVISION\"\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.4874745s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 341
+    completion_tokens: 76
+    total_tokens: 417
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:52:49.294291Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 254
+  messages:
+
+[1mSystem[0m:
+"You are a quality assessment specialist for blockchain development tasks.\n      You evaluate submissions across multiple dimensions:\n      \n      - Code quality and best practices\n      - Documentation completeness\n      - Test coverage and functionality\n      - Innovation and creativity\n      - Pro..."
+
+[1mUser[0m:
+"\n    Assess the quality of this blockchain/Web3 submission:\n    \n    TASK: Cook somethin\n    REQUIREMENTS: so we can say bro really cooked \n    SUBMISSION URL: https://proof-dao.vercel.app/\n    DESCRIPTION: I cooked\n    \n    Rate each dimension (0-100) and respond with ONLY valid JSON (no markdown, ..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:52:50.194798Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"completeness\": 20,\n  \"accuracy\": 0,\n  \"presentation\": 40,\n  \"innovation\": 0,\n  \"overallQuality\": 20,\n  \"technicalDepth\": 0,\n  \"documentation\": 0,\n  \"bestPractices\": 0\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 900.720542ms
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 257
+    completion_tokens: 66
+    total_tokens: 323
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:52:50.330183Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 324
+  messages:
+
+[1mSystem[0m:
+"You are a fraud detection specialist for DAO task submissions.\n      Your role is to identify potentially fraudulent or low-effort submissions:\n      \n      - Detect plagiarized or copied content\n      - Identify AI-generated submissions without disclosure\n      - Flag incomplete or minimal effort w..."
+
+[1mUser[0m:
+"\n    Analyze this submission for potential fraud or gaming:\n    \n    TASK REQUIREMENTS: so we can say bro really cooked \n    SUBMISSION URL: https://proof-dao.vercel.app/\n    PROOF DATA: I cooked\n    CONTRIBUTOR: 0x2F548e6396Ac29C7a95a007e888c6687476518Cf\n    \n    Look for:\n    - Minimal effort or i..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:52:51.307848Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"riskScore\": 90,\n  \"suspiciousFlags\": [\"incompleteWork\", \"doesNotMeetRequirements\"],\n  \"confidence\": 0.9,\n  \"requiresHumanReview\": true,\n  \"evidencePoints\": [\"PROOF DATA is too brief and lacks substance\", \"SUBMISSION URL does not provide meaningful evidence\", \"TASK REQUIREMENTS are not clearly addressed\"]\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 977.880625ms
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 327
+    completion_tokens: 82
+    total_tokens: 409
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T07:52:51.446803Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 233
+  messages:
+
+[1mSystem[0m:
+"You are a constructive feedback specialist for DAO contributors.\n      Generate helpful, encouraging, and specific feedback that:\n      \n      - Highlights what was done well\n      - Identifies specific areas for improvement\n      - Provides actionable suggestions\n      - Maintains a supportive tone..."
+
+[1mUser[0m:
+"\n    Generate constructive feedback for this DAO submission:\n    \n    TASK: Cook somethin\n    REQUIREMENTS: so we can say bro really cooked \n    SUBMISSION: I cooked\n    \n    Provide encouraging but honest feedback. Respond with ONLY valid JSON (no markdown, no explanations):\n    {\n      \"positiveFe..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T07:52:52.881170Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"positiveFeedback\": \"I appreciate your enthusiasm and willingness to take on the task!\",\n  \"improvementAreas\": [\"Providing more context or details\", \"Meeting the requirements more closely\"],\n  \"specificSuggestions\": [\"Please specify what you cooked and how it relates to the requirement\", \"Consider adding more substance to your submission to meet the 'bro really cooked' standard\"],\n  \"encouragement\": \"Don't be discouraged, and keep contributing! Your participation is valued.\",\n  \"nextSteps\": \"For the next task, take a moment to review the requirements and ensure your submission meets the expectations.\"\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.434554208s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 236
+    completion_tokens: 127
+    total_tokens: 363
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+

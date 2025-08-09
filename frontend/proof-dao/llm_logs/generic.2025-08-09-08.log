@@ -1,0 +1,240 @@
+  2025-08-09T08:15:59.283463Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 338
+  messages:
+
+[1mSystem[0m:
+"You are an expert task reviewer for a decentralized autonomous organization (DAO). \n      Your role is to objectively evaluate submitted work against task requirements. You must:\n      \n      1. Carefully analyze task requirements and submitted work\n      2. Check for completeness and accuracy\n     ..."
+
+[1mUser[0m:
+"\n    TASK DETAILS:\n    Title: Cook somethin\n    Description: cooking\n    Requirements: so we can say bro really cooked \n    Skills: \n    Reward: 1000000000000000 METIS\n    \n    SUBMISSION DETAILS:\n    Work URL: https://proof-dao.vercel.app/\n    Proof/Description: I cooked\n    Submitted: 2025-08-05T1..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T08:16:00.778645Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"score\": 20,\n  \"meetsRequirements\": false,\n  \"completeness\": 20,\n  \"quality\": 20,\n  \"keyIssues\": [\"Lack of detail in submission\", \"No evidence of actual cooking\"],\n  \"strengths\": [],\n  \"recommendation\": \"NEEDS_REVISION\"\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.495413583s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 341
+    completion_tokens: 72
+    total_tokens: 413
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T08:16:00.919154Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 254
+  messages:
+
+[1mSystem[0m:
+"You are a quality assessment specialist for blockchain development tasks.\n      You evaluate submissions across multiple dimensions:\n      \n      - Code quality and best practices\n      - Documentation completeness\n      - Test coverage and functionality\n      - Innovation and creativity\n      - Pro..."
+
+[1mUser[0m:
+"\n    Assess the quality of this blockchain/Web3 submission:\n    \n    TASK: Cook somethin\n    REQUIREMENTS: so we can say bro really cooked \n    SUBMISSION URL: https://proof-dao.vercel.app/\n    DESCRIPTION: I cooked\n    \n    Rate each dimension (0-100) and respond with ONLY valid JSON (no markdown, ..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T08:16:01.665394Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n\"completeness\": 10,\n\"accuracy\": 10,\n\"presentation\": 30,\n\"innovation\": 10,\n\"overallQuality\": 15,\n\"technicalDepth\": 20,\n\"documentation\": 0,\n\"bestPractices\": 20\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 746.503667ms
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 257
+    completion_tokens: 58
+    total_tokens: 315
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T08:16:01.801492Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 324
+  messages:
+
+[1mSystem[0m:
+"You are a fraud detection specialist for DAO task submissions.\n      Your role is to identify potentially fraudulent or low-effort submissions:\n      \n      - Detect plagiarized or copied content\n      - Identify AI-generated submissions without disclosure\n      - Flag incomplete or minimal effort w..."
+
+[1mUser[0m:
+"\n    Analyze this submission for potential fraud or gaming:\n    \n    TASK REQUIREMENTS: so we can say bro really cooked \n    SUBMISSION URL: https://proof-dao.vercel.app/\n    PROOF DATA: I cooked\n    CONTRIBUTOR: 0x2F548e6396Ac29C7a95a007e888c6687476518Cf\n    \n    Look for:\n    - Minimal effort or i..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T08:16:02.867051Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"riskScore\": 95,\n  \"suspiciousFlags\": [\"minimalEffort\", \"doesNotMeetRequirements\"],\n  \"confidence\": 0.9,\n  \"requiresHumanReview\": true,\n  \"evidencePoints\": [\"PROOF DATA only contains 3 words\", \"SUBMISSION URL does not provide any substantial content\", \"CONTRIBUTOR has a suspiciously vague username\"]\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.065886458s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 327
+    completion_tokens: 85
+    total_tokens: 412
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+
+  2025-08-09T08:16:03.004302Z  INFO alith_interface::requests::completion::request: 
+CompletionRequest:
+  total_prompt_tokens: 233
+  messages:
+
+[1mSystem[0m:
+"You are a constructive feedback specialist for DAO contributors.\n      Generate helpful, encouraging, and specific feedback that:\n      \n      - Highlights what was done well\n      - Identifies specific areas for improvement\n      - Provides actionable suggestions\n      - Maintains a supportive tone..."
+
+[1mUser[0m:
+"\n    Generate constructive feedback for this DAO submission:\n    \n    TASK: Cook somethin\n    REQUIREMENTS: so we can say bro really cooked \n    SUBMISSION: I cooked\n    \n    Provide encouraging but honest feedback. Respond with ONLY valid JSON (no markdown, no explanations):\n    {\n      \"positiveFe..."
+
+  stop_sequences: []
+  grammar_string: None
+  config: 
+    model_ctx_size: 8192
+    inference_ctx_size: 4096
+    requested_response_tokens: Some(4076)
+    actual_request_tokens: Some(4076)
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    retry_after_fail_n_times: 3
+    increase_limit_on_fail: false
+    cache_prompt: false
+  tools: []
+    at crates/interface/src/requests/completion/request.rs:93
+
+  2025-08-09T08:16:04.258910Z  INFO alith_interface::requests::completion::request: 
+CompletionResponse:
+    content: "{\n  \"positiveFeedback\": \"I love your enthusiasm and willingness to take on the task!\",\n  \"improvementAreas\": [\"Clarify the submission to meet the requirements\", \"Add concrete details to support your claim\"],\n  \"specificSuggestions\": [\"Please provide a detailed description of what you cooked, including ingredients and cooking methods\", \"Include a photo or video as evidence of your culinary skills\"],\n  \"encouragement\": \"You're off to a great start, and with a bit more detail, you'll be able to showcase your cooking skills to the community!\",\n  \"nextSteps\": \"Review the requirements again and resubmit with more detailed information to really wow us!\"\n}"
+    finish_reason: Eos
+    generation_settings: 
+    model: "llama3-70b-8192"
+    frequency_penalty: None
+    presence_penalty: 0.0
+    temperature: 1.0
+    top_p: None
+    n_choices: 1
+    n_predict: Some(4076)
+    n_ctx: 4096
+    logit_bias: None
+    grammar: None
+    stop_sequences: []
+    timing_usage: 
+    total_time: 1.254791166s
+    prompt_processing_t: None
+    generation_t: None
+    prompt_tok_per_ms: None
+    prompt_tok_per_sec: None
+    generation_tok_per_ms: None
+    generation_tok_per_sec: None
+    token_usage: 
+    tokens_cached: None
+    prompt_tokens: 236
+    completion_tokens: 140
+    total_tokens: 376
+    token_calls: None
+    at crates/interface/src/requests/completion/request.rs:111
+

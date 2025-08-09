@@ -25,6 +25,11 @@ import {
   AlertTriangle,
   Gavel,
   UserPlus,
+  Brain,
+  Sparkles,
+  Bot,
+  Zap,
+  Eye,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -39,6 +44,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { CONTRACT_ADDRESS_DAO, CONTRACT_ADDRESS_DAC } from "@/utils/constants"
+import AIValidationDashboard from "@/components/ai-validation"
+import { aiClientService } from "@/lib/ai-client"
 import axios from "axios"
 
 interface DAO {
@@ -93,6 +100,26 @@ interface Submission {
   status: number
   feedback: string
   qualityScore: number
+}
+
+// Enhanced interfaces with AI validation
+interface SubmissionWithAI extends Submission {
+  aiValidation?: {
+    aiScore: number
+    aiRecommendation: "APPROVE" | "REJECT" | "REVIEW"
+    aiFeedback: string
+    aiFlags: string[]
+    confidence: number
+    processingTime: number
+    validatedAt: number
+  }
+  isProcessingAI?: boolean
+}
+
+interface TaskWithAI extends Task {
+  aiSuggestions?: string[]
+  aiComplexityScore?: number
+  aiEstimatedTime?: number
 }
 
 interface Proposal {
@@ -408,7 +435,7 @@ const dacContractABI = [
   {
     inputs: [{ internalType: "uint256", name: "daoId", type: "uint256" }],
     name: "getDAOMembers",
-    outputs: [{ internalType: "address[]", name: "", type: "address[]" }],
+    outputs: [{ internalType: "address[]", name: "", type: "uint256[]" }],
     stateMutability: "view",
     type: "function",
   },
@@ -440,7 +467,7 @@ export default function DAODashboard() {
   const daoId = params.id as string
 
   const [dao, setDao] = useState<DAO | null>(null)
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [tasks, setTasks] = useState<TaskWithAI[]>([])
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [daoGovernance, setDaoGovernance] = useState<DAOGovernance | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -458,11 +485,30 @@ export default function DAODashboard() {
   const [isCreatingProposal, setIsCreatingProposal] = useState(false)
   const [isCreatingGovernance, setIsCreatingGovernance] = useState(false)
 
-  const [submissions, setSubmissions] = useState<Submission[]>([])
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  // AI Integration State
+  const [submissions, setSubmissions] = useState<SubmissionWithAI[]>([])
+  const [aiServiceAvailable, setAIServiceAvailable] = useState(false)
+  const [aiHealthStatus, setAIHealthStatus] = useState({
+    status: "offline" as "online" | "offline",
+    hasApiKey: false,
+    model: "Groq + Alith",
+    responseTime: "N/A",
+    accuracy: "N/A",
+  })
+  const [aiStats, setAIStats] = useState({
+    totalProcessed: 0,
+    highConfidence: 0,
+    avgScore: 0,
+    autoApproved: 0,
+    flaggedForReview: 0,
+    avgProcessingTime: 0,
+    costSavings: 0,
+  })
+
+  const [selectedTask, setSelectedTask] = useState<TaskWithAI | null>(null)
   const [showSubmitWork, setShowSubmitWork] = useState(false)
   const [showReviewSubmission, setShowReviewSubmission] = useState(false)
-  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null)
+  const [selectedSubmission, setSelectedSubmission] = useState<SubmissionWithAI | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isReviewing, setIsReviewing] = useState(false)
 
@@ -517,6 +563,65 @@ export default function DAODashboard() {
     feedback: "",
     qualityScore: 80,
   })
+
+  // Persistence functions for AI data
+  const saveAIDataToStorage = (submissions: SubmissionWithAI[], tasks: TaskWithAI[]) => {
+    try {
+      const aiData = {
+        submissions: submissions
+          .filter((s) => s.aiValidation)
+          .map((s) => ({
+            id: s.id,
+            aiValidation: s.aiValidation,
+          })),
+        tasks: tasks
+          .filter((t) => t.aiSuggestions)
+          .map((t) => ({
+            id: t.id,
+            aiSuggestions: t.aiSuggestions,
+            aiComplexityScore: t.aiComplexityScore,
+            aiEstimatedTime: t.aiEstimatedTime,
+          })),
+        timestamp: Date.now(),
+      }
+      localStorage.setItem(`dao-${daoId}-ai-data`, JSON.stringify(aiData))
+    } catch (error) {
+      console.error("Failed to save AI data to storage:", error)
+    }
+  }
+
+  const loadAIDataFromStorage = () => {
+    try {
+      const stored = localStorage.getItem(`dao-${daoId}-ai-data`)
+      if (stored) {
+        const aiData = JSON.parse(stored)
+        // Only load if data is less than 24 hours old
+        if (Date.now() - aiData.timestamp < 24 * 60 * 60 * 1000) {
+          return aiData
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load AI data from storage:", error)
+    }
+    return null
+  }
+
+  // Initialize AI service health check
+  useEffect(() => {
+    const checkAIHealth = async () => {
+      try {
+        const health = await aiClientService.getHealthStatus()
+        setAIHealthStatus(health)
+        setAIServiceAvailable(health.status === "online" && health.hasApiKey)
+        console.log("✅ AI Service health check completed:", health)
+      } catch (error) {
+        console.error("❌ AI Service health check failed:", error)
+        setAIServiceAvailable(false)
+      }
+    }
+
+    checkAIHealth()
+  }, [])
 
   // Initialize ethers and contracts
   useEffect(() => {
@@ -607,7 +712,18 @@ export default function DAODashboard() {
         const [id, minQuorum, votingDuration, useReputationVoting, allowDelegation] = governanceData
 
         if (Number(id) > 0) {
-          const members = await dacContract.getDAOMembers(BigInt(daoId))
+          const membersResult = await dacContract.getDAOMembers(BigInt(daoId))
+
+          // Convert BigInt members to strings and ensure they are valid addresses
+          const members = Array.isArray(membersResult)
+            ? membersResult
+                .map((member: any) => {
+                  if (typeof member === "string") return member
+                  if (typeof member === "bigint") return member.toString()
+                  return String(member)
+                })
+                .filter((member: string) => member && member.length > 0)
+            : []
 
           setDaoGovernance({
             daoId: id.toString(),
@@ -700,7 +816,7 @@ export default function DAODashboard() {
 
       try {
         const taskIds = await coreContract.getDAOTasks(BigInt(daoId))
-        const taskList: Task[] = []
+        const taskList: TaskWithAI[] = []
 
         for (const taskId of taskIds) {
           try {
@@ -763,13 +879,13 @@ export default function DAODashboard() {
     }
   }, [coreContract, dao, daoId])
 
-  // Load submissions for all tasks
+  // Load submissions for all tasks with AI enhancement
   useEffect(() => {
     const loadSubmissions = async () => {
       if (!coreContract || tasks.length === 0) return
 
       try {
-        const allSubmissions: Submission[] = []
+        const allSubmissions: SubmissionWithAI[] = []
 
         for (const task of tasks) {
           try {
@@ -810,6 +926,278 @@ export default function DAODashboard() {
     loadSubmissions()
   }, [coreContract, tasks])
 
+  // Load AI data from storage and merge with submissions/tasks
+  useEffect(() => {
+    if (submissions.length > 0 || tasks.length > 0) {
+      const storedAIData = loadAIDataFromStorage()
+      if (storedAIData) {
+        // Merge AI validation data with submissions
+        setSubmissions((prev) =>
+          prev.map((submission) => {
+            const aiData = storedAIData.submissions.find((s: any) => s.id === submission.id)
+            return aiData ? { ...submission, aiValidation: aiData.aiValidation } : submission
+          }),
+        )
+
+        // Merge AI suggestions with tasks
+        setTasks((prev) =>
+          prev.map((task) => {
+            const aiData = storedAIData.tasks.find((t: any) => t.id === task.id)
+            return aiData
+              ? {
+                  ...task,
+                  aiSuggestions: aiData.aiSuggestions,
+                  aiComplexityScore: aiData.aiComplexityScore,
+                  aiEstimatedTime: aiData.aiEstimatedTime,
+                }
+              : task
+          }),
+        )
+
+        console.log("✅ Loaded AI data from storage")
+      }
+    }
+  }, [submissions.length, tasks.length, daoId])
+
+  // Save AI data when submissions or tasks change
+  useEffect(() => {
+    if (submissions.length > 0 || tasks.length > 0) {
+      saveAIDataToStorage(submissions, tasks)
+    }
+  }, [submissions, tasks, daoId])
+
+  // Calculate AI statistics
+  useEffect(() => {
+    const processedSubmissions = submissions.filter((s) => s.aiValidation)
+    const totalProcessingTime = processedSubmissions.reduce((acc, s) => acc + (s.aiValidation?.processingTime || 0), 0)
+
+    setAIStats({
+      totalProcessed: processedSubmissions.length,
+      highConfidence: processedSubmissions.filter((s) => s.aiValidation!.confidence > 0.8).length,
+      avgScore:
+        processedSubmissions.length > 0
+          ? Math.round(
+              processedSubmissions.reduce((acc, s) => acc + (s.aiValidation?.aiScore || 0), 0) /
+                processedSubmissions.length,
+            )
+          : 0,
+      autoApproved: processedSubmissions.filter((s) => s.aiValidation?.aiRecommendation === "APPROVE").length,
+      flaggedForReview: processedSubmissions.filter((s) => s.aiValidation && s.aiValidation.aiFlags.length > 0).length,
+      avgProcessingTime:
+        processedSubmissions.length > 0 ? Math.round(totalProcessingTime / processedSubmissions.length) : 0,
+      costSavings: processedSubmissions.length * 15, // Assuming 15 minutes saved per AI review
+    })
+  }, [submissions])
+
+  // AI Validation Functions using client service
+  const validateSubmissionWithAI = async (submissionId: string): Promise<void> => {
+    if (!aiServiceAvailable) {
+      throw new Error("AI service not available")
+    }
+
+    const submission = submissions.find((s) => s.id === submissionId)
+    const task = submission ? tasks.find((t) => t.id === submission.taskId) : null
+
+    if (!submission || !task) {
+      throw new Error("Submission or task not found")
+    }
+
+    // Mark as processing
+    setSubmissions((prev) => prev.map((s) => (s.id === submissionId ? { ...s, isProcessingAI: true } : s)))
+
+    try {
+      const startTime = Date.now()
+      const aiResult = await aiClientService.validateSubmission(task, submission)
+      const processingTime = Date.now() - startTime
+
+      const aiValidation = {
+        ...aiResult,
+        processingTime,
+        validatedAt: Date.now(),
+      }
+
+      setSubmissions((prev) =>
+        prev.map((s) => (s.id === submissionId ? { ...s, aiValidation, isProcessingAI: false } : s)),
+      )
+
+      console.log(`✅ AI validation completed for submission ${submissionId}: ${aiResult.aiScore}/100`)
+    } catch (error) {
+      console.error("❌ AI validation failed:", error)
+      setSubmissions((prev) => prev.map((s) => (s.id === submissionId ? { ...s, isProcessingAI: false } : s)))
+      throw error
+    }
+  }
+
+  const batchValidateSubmissions = async (submissionIds: string[]): Promise<void> => {
+    if (!aiServiceAvailable || submissionIds.length === 0) {
+      return
+    }
+
+    // Mark all as processing
+    setSubmissions((prev) => prev.map((s) => (submissionIds.includes(s.id) ? { ...s, isProcessingAI: true } : s)))
+
+    try {
+      const submissionTaskPairs = submissionIds
+        .map((id) => {
+          const submission = submissions.find((s) => s.id === id)
+          const task = submission ? tasks.find((t) => t.id === submission.taskId) : null
+          return submission && task ? { submission, task } : null
+        })
+        .filter((pair): pair is { submission: Submission; task: Task } => pair !== null)
+
+      const startTime = Date.now()
+      const results = await aiClientService.batchValidateSubmissions(
+        daoId,
+        submissionTaskPairs.map((p) => p.submission),
+        submissionTaskPairs.map((p) => p.task),
+      )
+      const totalProcessingTime = Date.now() - startTime
+
+      // Update all submissions with results
+      setSubmissions((prev) =>
+        prev.map((s) => {
+          const resultIndex = submissionIds.indexOf(s.id)
+          if (resultIndex >= 0 && results[resultIndex]) {
+            const result = results[resultIndex]
+            return {
+              ...s,
+              aiValidation: {
+                aiScore: result.aiScore,
+                aiRecommendation: result.aiRecommendation,
+                aiFeedback: result.aiFeedback,
+                aiFlags: result.aiFlags,
+                confidence: result.confidence,
+                processingTime: Math.round(totalProcessingTime / submissionIds.length),
+                validatedAt: Date.now(),
+              },
+              isProcessingAI: false,
+            }
+          }
+          return s.id === submissionIds[resultIndex] ? { ...s, isProcessingAI: false } : s
+        }),
+      )
+
+      console.log(`✅ Batch validation completed for ${submissionIds.length} submissions`)
+    } catch (error) {
+      console.error("❌ Batch validation failed:", error)
+      // Reset processing state
+      setSubmissions((prev) => prev.map((s) => (submissionIds.includes(s.id) ? { ...s, isProcessingAI: false } : s)))
+      throw error
+    }
+  }
+
+  const autoApproveWithAI = async (submissionId: string): Promise<void> => {
+    const submission = submissions.find((s) => s.id === submissionId)
+    if (!submission?.aiValidation || submission.aiValidation.confidence < 0.8) {
+      throw new Error("Submission not eligible for auto-approval")
+    }
+
+    await handleApproveSubmission(
+      submission,
+      `AI-approved submission (Score: ${submission.aiValidation.aiScore}/100, Confidence: ${Math.round(submission.aiValidation.confidence * 100)}%). ${submission.aiValidation.aiFeedback}`,
+      submission.aiValidation.aiScore,
+    )
+  }
+
+  const autoRejectWithAI = async (submissionId: string): Promise<void> => {
+    const submission = submissions.find((s) => s.id === submissionId)
+    if (!submission?.aiValidation || submission.aiValidation.aiScore > 40) {
+      throw new Error("Submission not eligible for auto-rejection")
+    }
+
+    await handleRejectSubmission(
+      submission,
+      `AI-rejected submission (Score: ${submission.aiValidation.aiScore}/100). Issues: ${submission.aiValidation.aiFlags.join(", ")}. ${submission.aiValidation.aiFeedback}`,
+    )
+  }
+
+  const getTaskSuggestions = async (taskId: string): Promise<void> => {
+    if (!aiServiceAvailable) return
+
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task) return
+
+    try {
+      const suggestions = await aiClientService.getTaskSuggestions(task)
+
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, aiSuggestions: suggestions } : t)))
+    } catch (error) {
+      console.error("Failed to get AI task suggestions:", error)
+    }
+  }
+
+  // Enhanced submission handling functions
+  const handleApproveSubmission = async (submission: SubmissionWithAI, feedback: string, qualityScore: number) => {
+    if (!coreContract || !provider) {
+      alert("Please connect your wallet")
+      return
+    }
+
+    try {
+      setIsReviewing(true)
+
+      const signer = await provider.getSigner()
+      const contractWithSigner = coreContract.connect(signer)
+
+      const tx = await contractWithSigner.approveSubmission(BigInt(submission.id), feedback, BigInt(qualityScore))
+
+      console.log("Transaction sent:", tx.hash)
+      await tx.wait()
+
+      // Update local state
+      setSubmissions((prev) =>
+        prev.map((s) => (s.id === submission.id ? { ...s, status: 1, feedback, qualityScore } : s)),
+      )
+
+      alert("Submission approved successfully!")
+      setShowReviewSubmission(false)
+    } catch (error: any) {
+      console.error("Error approving submission:", error)
+      if (error.reason) {
+        alert(`Transaction failed: ${error.reason}`)
+      } else {
+        alert("Error approving submission. Please try again.")
+      }
+    } finally {
+      setIsReviewing(false)
+    }
+  }
+
+  const handleRejectSubmission = async (submission: SubmissionWithAI, feedback: string) => {
+    if (!coreContract || !provider) {
+      alert("Please connect your wallet")
+      return
+    }
+
+    try {
+      setIsReviewing(true)
+
+      const signer = await provider.getSigner()
+      const contractWithSigner = coreContract.connect(signer)
+
+      const tx = await contractWithSigner.rejectSubmission(BigInt(submission.id), feedback)
+
+      console.log("Transaction sent:", tx.hash)
+      await tx.wait()
+
+      // Update local state
+      setSubmissions((prev) => prev.map((s) => (s.id === submission.id ? { ...s, status: 2, feedback } : s)))
+
+      alert("Submission rejected successfully!")
+      setShowReviewSubmission(false)
+    } catch (error: any) {
+      console.error("Error rejecting submission:", error)
+      if (error.reason) {
+        alert(`Transaction failed: ${error.reason}`)
+      } else {
+        alert("Error rejecting submission. Please try again.")
+      }
+    } finally {
+      setIsReviewing(false)
+    }
+  }
+
+  // Keep all existing handler functions (handleCreateGovernance, handleCreateProposal, etc.)
   const handleCreateGovernance = async () => {
     if (!dacContract || !provider || !dao) {
       alert("Please connect your wallet first")
@@ -822,7 +1210,6 @@ export default function DAODashboard() {
       const signer = await provider.getSigner()
       const contractWithSigner = dacContract.connect(signer)
 
-      // @ts-expect-error: createDAOGovernance is a custom contract method
       const tx = await contractWithSigner.createDAOGovernance(
         BigInt(dao.id),
         governanceForm.useReputationVoting,
@@ -840,8 +1227,6 @@ export default function DAODashboard() {
         customVotingDuration: 0,
       })
 
-      // After successful governance creation, the creator is automatically added as a member
-      // Refresh the page to show updated UI
       window.location.reload()
     } catch (error: any) {
       console.error("Error creating governance:", error)
@@ -867,7 +1252,6 @@ export default function DAODashboard() {
       const signer = await provider.getSigner()
       const contractWithSigner = dacContract.connect(signer)
 
-      // @ts-expect-error: createProposal is a custom contract method
       const tx = await contractWithSigner.createProposal(
         BigInt(dao.id),
         proposalForm.proposalType,
@@ -914,7 +1298,6 @@ export default function DAODashboard() {
       const signer = await provider.getSigner()
       const contractWithSigner = dacContract.connect(signer)
 
-      // @ts-expect-error: castVote is a custom contract method
       const tx = await contractWithSigner.castVote(BigInt(proposalId), support, reason)
 
       console.log("Transaction sent:", tx.hash)
@@ -942,7 +1325,6 @@ export default function DAODashboard() {
       const signer = await provider.getSigner()
       const contractWithSigner = dacContract.connect(signer)
 
-      // @ts-expect-error: executeProposal is a custom contract method
       const tx = await contractWithSigner.executeProposal(BigInt(proposalId))
 
       console.log("Transaction sent:", tx.hash)
@@ -970,7 +1352,6 @@ export default function DAODashboard() {
       const signer = await provider.getSigner()
       const contractWithSigner = dacContract.connect(signer)
 
-      // @ts-expect-error: addDAOMember is a custom contract method
       const tx = await contractWithSigner.addDAOMember(BigInt(daoId), memberForm.address, BigInt(memberForm.weight))
 
       console.log("Transaction sent:", tx.hash)
@@ -1001,7 +1382,6 @@ export default function DAODashboard() {
       const signer = await provider.getSigner()
       const contractWithSigner = dacContract.connect(signer)
 
-      // @ts-expect-error: raiseDispute is a custom contract method
       const tx = await contractWithSigner.raiseDispute(BigInt(disputeForm.taskId), disputeForm.reason)
 
       console.log("Transaction sent:", tx.hash)
@@ -1034,7 +1414,6 @@ export default function DAODashboard() {
       const signer = await provider.getSigner()
       const contractWithSigner = coreContract.connect(signer)
 
-      // @ts-expect-error: submitWork is a custom contract method
       const tx = await contractWithSigner.submitWork(
         BigInt(selectedTask.id),
         workForm.workURI,
@@ -1061,80 +1440,6 @@ export default function DAODashboard() {
     }
   }
 
-  const handleApproveSubmission = async () => {
-    if (!coreContract || !provider || !selectedSubmission || !reviewForm.feedback.trim()) {
-      alert("Please provide feedback")
-      return
-    }
-
-    try {
-      setIsReviewing(true)
-
-      const signer = await provider.getSigner()
-      const contractWithSigner = coreContract.connect(signer)
-
-      // @ts-expect-error: approveSubmission is a custom contract method
-      const tx = await contractWithSigner.approveSubmission(
-        BigInt(selectedSubmission.id),
-        reviewForm.feedback,
-        BigInt(reviewForm.qualityScore),
-      )
-
-      console.log("Transaction sent:", tx.hash)
-      await tx.wait()
-
-      setShowReviewSubmission(false)
-      setReviewForm({ feedback: "", qualityScore: 80 })
-      setSelectedSubmission(null)
-
-      window.location.reload()
-    } catch (error: any) {
-      console.error("Error approving submission:", error)
-      if (error.reason) {
-        alert(`Transaction failed: ${error.reason}`)
-      } else {
-        alert("Error approving submission. Please try again.")
-      }
-    } finally {
-      setIsReviewing(false)
-    }
-  }
-
-  const handleRejectSubmission = async () => {
-    if (!coreContract || !provider || !selectedSubmission || !reviewForm.feedback.trim()) {
-      alert("Please provide feedback")
-      return
-    }
-
-    try {
-      setIsReviewing(true)
-
-      const signer = await provider.getSigner()
-      const contractWithSigner = coreContract.connect(signer)
-
-      // @ts-expect-error: rejectSubmission is a custom contract method
-      const tx = await contractWithSigner.rejectSubmission(BigInt(selectedSubmission.id), reviewForm.feedback)
-
-      console.log("Transaction sent:", tx.hash)
-      await tx.wait()
-
-      setShowReviewSubmission(false)
-      setReviewForm({ feedback: "", qualityScore: 80 })
-      setSelectedSubmission(null)
-
-      window.location.reload()
-    } catch (error: any) {
-      console.error("Error rejecting submission:", error)
-      if (error.reason) {
-        alert(`Transaction failed: ${error.reason}`)
-      } else {
-        alert("Error rejecting submission. Please try again.")
-      }
-    } finally {
-      setIsReviewing(false)
-    }
-  }
-
   const handleClaimReward = async (submissionId: string) => {
     if (!coreContract || !provider) {
       alert("Please connect your wallet")
@@ -1145,7 +1450,6 @@ export default function DAODashboard() {
       const signer = await provider.getSigner()
       const contractWithSigner = coreContract.connect(signer)
 
-      // @ts-expect-error: claimReward is a custom contract method
       const tx = await contractWithSigner.claimReward(BigInt(submissionId))
 
       console.log("Transaction sent:", tx.hash)
@@ -1177,7 +1481,6 @@ export default function DAODashboard() {
       const signer = await provider.getSigner()
       const contractWithSigner = coreContract.connect(signer)
 
-      // @ts-expect-error: cancelTask is a custom contract method
       const tx = await contractWithSigner.cancelTask(BigInt(taskId))
 
       console.log("Transaction sent:", tx.hash)
@@ -1292,6 +1595,12 @@ export default function DAODashboard() {
         skillTags: [],
       })
 
+      // Get AI suggestions for the newly created task
+      const newTaskId = tx.hash // This would need to be extracted from the transaction receipt
+      if (newTaskId && aiServiceAvailable) {
+        await getTaskSuggestions(newTaskId)
+      }
+
       window.location.reload()
     } catch (error: any) {
       console.error("Error creating task:", error)
@@ -1387,7 +1696,7 @@ export default function DAODashboard() {
     }
   }
 
-  const canSubmitToTask = (task: Task) => {
+  const canSubmitToTask = (task: TaskWithAI) => {
     if (!account) return false
     if (task.creator.toLowerCase() === account.toLowerCase()) return false
     if (task.status !== 0) return false
@@ -1404,7 +1713,7 @@ export default function DAODashboard() {
     return submissions.filter((sub) => sub.taskId === taskId)
   }
 
-  const canReviewSubmission = (submission: Submission) => {
+  const canReviewSubmission = (submission: SubmissionWithAI) => {
     if (!account) return false
     const task = tasks.find((t) => t.id === submission.taskId)
     if (!task) return false
@@ -1415,7 +1724,7 @@ export default function DAODashboard() {
     )
   }
 
-  const canClaimReward = (submission: Submission) => {
+  const canClaimReward = (submission: SubmissionWithAI) => {
     if (!account) return false
     return submission.status === 1 && submission.contributor.toLowerCase() === account.toLowerCase()
   }
@@ -1427,7 +1736,11 @@ export default function DAODashboard() {
     if (Date.now() > proposal.votingDeadline * 1000) return false // Voting period ended
 
     // Check if user is a governance member (including DAO creator)
-    const isGovernanceMember = daoGovernance.members.some((member) => member.toLowerCase() === account.toLowerCase())
+    const isGovernanceMember = daoGovernance.members.some((member) => {
+      // Ensure member is a string before calling toLowerCase
+      const memberStr = typeof member === "string" ? member : String(member)
+      return memberStr.toLowerCase() === account.toLowerCase()
+    })
     const isDAOCreator = dao?.creator.toLowerCase() === account.toLowerCase()
 
     return isGovernanceMember || isDAOCreator
@@ -1437,8 +1750,40 @@ export default function DAODashboard() {
   const isDAOMember =
     daoGovernance &&
     account &&
-    (daoGovernance.members.some((member) => member.toLowerCase() === account.toLowerCase()) ||
+    (daoGovernance.members.some((member) => {
+      // Ensure member is a string before calling toLowerCase
+      const memberStr = typeof member === "string" ? member : String(member)
+      return memberStr.toLowerCase() === account.toLowerCase()
+    }) ||
       dao?.creator.toLowerCase() === account.toLowerCase())
+
+  // AI Status Component
+  const renderAIStatus = () => (
+    <Card className="bg-slate-800/50 border-slate-700 mb-6">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div
+              className={`w-3 h-3 rounded-full ${aiServiceAvailable ? "bg-green-400 animate-pulse" : "bg-red-400"}`}
+            ></div>
+            <span className="text-white font-medium">AI Validation: {aiServiceAvailable ? "Active" : "Offline"}</span>
+            {aiServiceAvailable && (
+              <Badge className="bg-green-900/50 text-green-400 border-green-700">
+                <Bot className="w-3 h-3 mr-1" />
+                {aiHealthStatus.model}
+              </Badge>
+            )}
+          </div>
+          {aiStats.totalProcessed > 0 && (
+            <div className="text-slate-400 text-sm">
+              {aiStats.totalProcessed} processed • ~{Math.round(aiStats.costSavings)}min saved •{" "}
+              {Math.round((aiStats.highConfidence / aiStats.totalProcessed) * 100)}% high confidence
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
 
   if (isLoading) {
     return (
@@ -1859,6 +2204,9 @@ export default function DAODashboard() {
           <p className="text-slate-300 text-lg max-w-4xl">{dao.description}</p>
         </div>
 
+        {/* AI Status Display */}
+        {renderAIStatus()}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card className="bg-slate-800/50 border-slate-700">
@@ -1934,7 +2282,11 @@ export default function DAODashboard() {
               Analytics
             </TabsTrigger>
             <TabsTrigger value="submissions" className="data-[state=active]:bg-slate-700 text-white">
-              Submissions ({submissions.length})
+              AI Submissions ({submissions.length})
+            </TabsTrigger>
+            <TabsTrigger value="ai-insights" className="data-[state=active]:bg-slate-700 text-white">
+              <Brain className="w-4 h-4 mr-1" />
+              AI Insights
             </TabsTrigger>
           </TabsList>
 
@@ -2029,6 +2381,12 @@ export default function DAODashboard() {
                             <div className="flex items-center space-x-3 mb-2">
                               <h3 className="text-xl font-semibold text-white">{task.title}</h3>
                               {getTaskStatusBadge(task.status)}
+                              {task.aiSuggestions && (
+                                <Badge className="bg-purple-900/50 text-purple-400 border-purple-700">
+                                  <Sparkles className="w-3 h-3 mr-1" />
+                                  AI Enhanced
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-slate-300 mb-4">{task.description}</p>
                             <div className="flex items-center space-x-6 text-sm text-slate-400 mb-4">
@@ -2045,6 +2403,24 @@ export default function DAODashboard() {
                                 {task.currentSubmissions}/{task.maxSubmissions} submissions
                               </div>
                             </div>
+
+                            {/* AI Suggestions */}
+                            {task.aiSuggestions && (
+                              <div className="mb-4 p-3 bg-purple-900/20 border border-purple-700/30 rounded-lg">
+                                <h4 className="text-purple-400 font-medium mb-2 flex items-center">
+                                  <Brain className="w-4 h-4 mr-2" />
+                                  AI Suggestions
+                                </h4>
+                                <ul className="text-slate-300 text-sm space-y-1">
+                                  {task.aiSuggestions.map((suggestion, index) => (
+                                    <li key={index} className="flex items-start">
+                                      <span className="text-purple-400 mr-2">•</span>
+                                      {suggestion}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
 
                             {getTaskSubmissions(task.id).length > 0 && (
                               <div className="mb-4">
@@ -2065,10 +2441,35 @@ export default function DAODashboard() {
                                             {submission.contributor.substring(submission.contributor.length - 4)}
                                           </span>
                                           {getSubmissionStatusBadge(submission.status)}
+                                          {submission.aiValidation && (
+                                            <Badge className="bg-blue-900/50 text-blue-400 border-blue-700 text-xs">
+                                              AI: {submission.aiValidation.aiScore}/100
+                                            </Badge>
+                                          )}
                                         </div>
-                                        <span className="text-slate-400 text-xs">
-                                          {formatDate(submission.submittedAt)}
-                                        </span>
+                                        <div className="flex items-center space-x-2">
+                                          <span className="text-slate-400 text-xs">
+                                            {formatDate(submission.submittedAt)}
+                                          </span>
+                                          {canReviewSubmission(submission) && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => {
+                                                setSelectedSubmission(submission)
+                                                setReviewForm({
+                                                  feedback: submission.aiValidation?.aiFeedback || "",
+                                                  qualityScore: submission.aiValidation?.aiScore || 80,
+                                                })
+                                                setShowReviewSubmission(true)
+                                              }}
+                                              className="border-slate-600 text-slate-300 hover:bg-slate-700 text-xs px-2 py-1"
+                                            >
+                                              <Eye className="w-3 h-3 mr-1" />
+                                              Review
+                                            </Button>
+                                          )}
+                                        </div>
                                       </div>
                                     ))}
                                   {getTaskSubmissions(task.id).length > 3 && (
@@ -2096,14 +2497,28 @@ export default function DAODashboard() {
                             )}
 
                             {isDAOCreator && task.status === 0 && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleCancelTask(task.id)}
-                                className="border-red-600 text-red-400 hover:bg-red-900/20 hover:text-red-500"
-                              >
-                                Cancel Task
-                              </Button>
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleCancelTask(task.id)}
+                                  className="border-red-600 text-red-400 hover:bg-red-900/20 hover:text-red-500"
+                                >
+                                  Cancel Task
+                                </Button>
+
+                                {aiServiceAvailable && !task.aiSuggestions && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => getTaskSuggestions(task.id)}
+                                    className="border-purple-600 text-purple-400 hover:bg-purple-900/20"
+                                  >
+                                    <Brain className="w-4 h-4 mr-1" />
+                                    AI Optimize
+                                  </Button>
+                                )}
+                              </>
                             )}
 
                             <Button
@@ -2113,19 +2528,6 @@ export default function DAODashboard() {
                               className="border-slate-600 text-slate-800 hover:bg-slate-700 hover:text-slate-300"
                             >
                               View Details
-                            </Button>
-
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setDisputeForm((prev) => ({ ...prev, taskId: task.id }))
-                                setShowDispute(true)
-                              }}
-                              className="border-orange-600 text-orange-400 hover:bg-orange-900/20 hover:text-orange-500"
-                            >
-                              <AlertTriangle className="w-4 h-4 mr-1" />
-                              Dispute
                             </Button>
                           </div>
                         </div>
@@ -2377,28 +2779,34 @@ export default function DAODashboard() {
                     {/* Governance Members */}
                     {daoGovernance && daoGovernance.members.length > 1
                       ? daoGovernance.members
-                          .filter((member) => member.toLowerCase() !== dao.creator.toLowerCase())
-                          .map((member, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg"
-                            >
-                              <div className="flex items-center space-x-3">
-                                <Avatar className="w-10 h-10">
-                                  <AvatarFallback className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white">
-                                    {member.substring(2, 4).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <h4 className="text-white font-medium">Member</h4>
-                                  <p className="text-slate-400 text-sm font-mono">
-                                    {member.substring(0, 6)}...{member.substring(member.length - 4)}
-                                  </p>
+                          .filter((member) => {
+                            const memberStr = typeof member === "string" ? member : String(member)
+                            return memberStr.toLowerCase() !== dao.creator.toLowerCase()
+                          })
+                          .map((member, index) => {
+                            const memberStr = typeof member === "string" ? member : String(member)
+                            return (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg"
+                              >
+                                <div className="flex items-center space-x-3">
+                                  <Avatar className="w-10 h-10">
+                                    <AvatarFallback className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white">
+                                      {memberStr.substring(2, 4).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <h4 className="text-white font-medium">Member</h4>
+                                    <p className="text-slate-400 text-sm font-mono">
+                                      {memberStr.substring(0, 6)}...{memberStr.substring(memberStr.length - 4)}
+                                    </p>
+                                  </div>
                                 </div>
+                                <Badge className="bg-blue-900/50 text-blue-400 border-blue-700">Voter</Badge>
                               </div>
-                              <Badge className="bg-blue-900/50 text-blue-400 border-blue-700">Voter</Badge>
-                            </div>
-                          ))
+                            )
+                          })
                       : /* Additional Members from metadata */
                         dao.members &&
                         dao.members.length > 0 &&
@@ -2596,7 +3004,7 @@ export default function DAODashboard() {
                         <div className="flex justify-between items-center">
                           <span className="text-slate-400">Passed</span>
                           <span className="text-green-400 font-medium">
-                            {proposals.filter((p) => p.status === 1).length}
+                            {proposals.filter((p) => p.status === 1 || p.status === 3).length}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -2687,105 +3095,240 @@ export default function DAODashboard() {
           </TabsContent>
 
           <TabsContent value="submissions" className="mt-6">
+            <AIValidationDashboard
+              submissions={submissions}
+              onValidateSubmission={validateSubmissionWithAI}
+              onBatchValidate={batchValidateSubmissions}
+              onApproveWithAI={autoApproveWithAI}
+              onRejectWithAI={autoRejectWithAI}
+            />
+          </TabsContent>
+
+          <TabsContent value="ai-insights" className="mt-6">
             <div className="space-y-6">
-              {submissions.length > 0 ? (
-                <div className="grid gap-6">
-                  {submissions.map((submission) => {
-                    const task = tasks.find((t) => t.id === submission.taskId)
-                    if (!task) return null
+              {/* AI Performance Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <Card className="bg-slate-800/50 border-slate-700">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-slate-400 text-sm">AI Processed</p>
+                        <p className="text-2xl font-bold text-white">{aiStats.totalProcessed}</p>
+                      </div>
+                      <Brain className="w-8 h-8 text-blue-400" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-                    return (
-                      <Card key={submission.id} className="bg-slate-800/50 border-slate-700">
-                        <CardContent className="p-6">
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-2">
-                                <h3 className="text-lg font-semibold text-white">{task.title}</h3>
-                                {getSubmissionStatusBadge(submission.status)}
-                              </div>
-                              <p className="text-slate-400 text-sm mb-2">
-                                by {submission.contributor.substring(0, 6)}...
-                                {submission.contributor.substring(submission.contributor.length - 4)}
-                              </p>
-                              <p className="text-slate-300 text-sm mb-3">
-                                Submitted {formatDate(submission.submittedAt)}
-                              </p>
+                <Card className="bg-slate-800/50 border-slate-700">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-slate-400 text-sm">High Confidence</p>
+                        <p className="text-2xl font-bold text-white">{aiStats.highConfidence}</p>
+                      </div>
+                      <Shield className="w-8 h-8 text-green-400" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-                              {submission.workURI && (
-                                <div className="mb-3">
-                                  <Label className="text-slate-400 text-sm">Work Submission:</Label>
-                                  <a
-                                    href={submission.workURI}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-400 hover:text-blue-300 text-sm ml-2"
-                                  >
-                                    View Work <ExternalLink className="w-3 h-3 inline ml-1" />
-                                  </a>
-                                </div>
-                              )}
+                <Card className="bg-slate-800/50 border-slate-700">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-slate-400 text-sm">Avg AI Score</p>
+                        <p className="text-2xl font-bold text-white">{aiStats.avgScore}</p>
+                      </div>
+                      <TrendingUp className="w-8 h-8 text-purple-400" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-                              {submission.feedback && (
-                                <div className="mb-3">
-                                  <Label className="text-slate-400 text-sm">Feedback:</Label>
-                                  <p className="text-slate-300 text-sm mt-1">{submission.feedback}</p>
-                                </div>
-                              )}
+                <Card className="bg-slate-800/50 border-slate-700">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-slate-400 text-sm">Time Saved</p>
+                        <p className="text-2xl font-bold text-white">{Math.round(aiStats.costSavings)}min</p>
+                      </div>
+                      <Clock className="w-8 h-8 text-yellow-400" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-                              {submission.qualityScore > 0 && (
-                                <div className="mb-3">
-                                  <Label className="text-slate-400 text-sm">Quality Score:</Label>
-                                  <span className="text-green-400 font-medium ml-2">{submission.qualityScore}/100</span>
-                                </div>
-                              )}
-                            </div>
+              {/* AI Insights Cards */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <Card className="bg-slate-800/50 border-slate-700">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center">
+                      <Sparkles className="w-5 h-5 mr-2 text-purple-400" />
+                      AI Quality Insights
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Auto-Approval Rate</span>
+                        <span className="text-green-400 font-medium">
+                          {aiStats.totalProcessed > 0
+                            ? Math.round((aiStats.autoApproved / aiStats.totalProcessed) * 100)
+                            : 0}
+                          %
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Flagged for Review</span>
+                        <span className="text-orange-400 font-medium">
+                          {aiStats.totalProcessed > 0
+                            ? Math.round((aiStats.flaggedForReview / aiStats.totalProcessed) * 100)
+                            : 0}
+                          %
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Avg Processing Time</span>
+                        <span className="text-blue-400 font-medium">{aiStats.avgProcessingTime}ms</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-400">Confidence Rate</span>
+                        <span className="text-purple-400 font-medium">
+                          {aiStats.totalProcessed > 0
+                            ? Math.round((aiStats.highConfidence / aiStats.totalProcessed) * 100)
+                            : 0}
+                          %
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                            <div className="flex flex-col space-y-2">
-                              {canReviewSubmission(submission) && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedSubmission(submission)
-                                    setShowReviewSubmission(true)
-                                  }}
-                                  className="bg-blue-600 hover:bg-blue-700"
-                                >
-                                  Review
-                                </Button>
-                              )}
+                <Card className="bg-slate-800/50 border-slate-700">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center">
+                      <Bot className="w-5 h-5 mr-2 text-blue-400" />
+                      AI Service Status
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Service Status</span>
+                        <div className="flex items-center space-x-2">
+                          <div
+                            className={`w-2 h-2 rounded-full ${aiServiceAvailable ? "bg-green-400" : "bg-red-400"}`}
+                          ></div>
+                          <span className="text-white">{aiServiceAvailable ? "Online" : "Offline"}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">AI Model</span>
+                        <span className="text-white">{aiHealthStatus.model}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Response Time</span>
+                        <span className="text-green-400">{aiHealthStatus.responseTime}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Accuracy</span>
+                        <span className="text-purple-400">{aiHealthStatus.accuracy}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-                              {canClaimReward(submission) && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleClaimReward(submission.id)}
-                                  className="bg-green-600 hover:bg-green-700"
-                                >
-                                  <Coins className="w-4 h-4 mr-1" />
-                                  Claim Reward
-                                </Button>
-                              )}
-                            </div>
-                          </div>
+              {/* AI Recommendations */}
+              {aiServiceAvailable && (
+                <Card className="bg-slate-800/50 border-slate-700">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center">
+                      <Zap className="w-5 h-5 mr-2 text-yellow-400" />
+                      AI Recommendations
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="text-white font-medium mb-3">Task Optimization</h4>
+                        <ul className="space-y-2 text-slate-300 text-sm">
+                          <li className="flex items-start">
+                            <span className="text-blue-400 mr-2">•</span>
+                            Consider adding more specific deliverables to reduce ambiguity
+                          </li>
+                          <li className="flex items-start">
+                            <span className="text-blue-400 mr-2">•</span>
+                            Include estimated time requirements for better contributor matching
+                          </li>
+                          <li className="flex items-start">
+                            <span className="text-blue-400 mr-2">•</span>
+                            Add skill level requirements to attract qualified contributors
+                          </li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="text-white font-medium mb-3">Quality Improvements</h4>
+                        <ul className="space-y-2 text-slate-300 text-sm">
+                          <li className="flex items-start">
+                            <span className="text-green-400 mr-2">•</span>
+                            Enable auto-approval for high-confidence submissions (&gt;80%)
+                          </li>
+                          <li className="flex items-start">
+                            <span className="text-green-400 mr-2">•</span>
+                            Use AI feedback to provide better contributor guidance
+                          </li>
+                          <li className="flex items-start">
+                            <span className="text-green-400 mr-2">•</span>
+                            Review flagged submissions manually for quality assurance
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                          <div className="border-t border-slate-700 pt-4">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-slate-400">Task Reward: {formatReward(task.reward)} METIS</span>
-                              <span className="text-slate-400">Task Status: {getTaskStatusBadge(task.status)}</span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Users className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-white mb-2">No Submissions Yet</h3>
-                  <p className="text-slate-400 mb-6">
-                    Task submissions will appear here once contributors start submitting work.
-                  </p>
-                </div>
+              {/* Setup AI if not available */}
+              {!aiServiceAvailable && (
+                <Card className="bg-orange-900/20 border-orange-700/50">
+                  <CardContent className="p-6">
+                    <div className="flex items-start space-x-4">
+                      <AlertTriangle className="w-6 h-6 text-orange-400 mt-1" />
+                      <div className="flex-1">
+                        <h3 className="text-orange-400 font-medium mb-2">AI Validation Setup Required</h3>
+                        <p className="text-orange-300 text-sm mb-4">
+                          Enable AI-powered submission validation to automate quality assessment and save time.
+                        </p>
+                        <div className="bg-slate-800/50 rounded-lg p-4 mb-4">
+                          <h4 className="text-white font-medium mb-2">Setup Instructions:</h4>
+                          <ol className="text-slate-300 text-sm space-y-1 list-decimal list-inside">
+                            <li>
+                              Get your free API key from{" "}
+                              <a
+                                href="https://console.groq.com/keys"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-400 hover:text-blue-300"
+                              >
+                                console.groq.com/keys
+                              </a>
+                            </li>
+                            <li>
+                              Add{" "}
+                              <code className="bg-slate-700 px-2 py-1 rounded text-xs">GROQ_API_KEY=your-api-key</code>{" "}
+                              to your environment
+                            </li>
+                            <li>Restart your development server</li>
+                          </ol>
+                        </div>
+                        <Button className="bg-orange-600 hover:bg-orange-700">
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Get API Key
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </div>
           </TabsContent>
@@ -2884,6 +3427,41 @@ export default function DAODashboard() {
                     <p className="text-slate-300 text-sm">{selectedSubmission.proofData}</p>
                   </div>
                 )}
+                {selectedSubmission.aiValidation && (
+                  <div className="mt-3 p-3 bg-blue-900/20 border border-blue-700/30 rounded">
+                    <h5 className="text-blue-400 font-medium mb-2 flex items-center">
+                      <Brain className="w-4 h-4 mr-2" />
+                      AI Analysis
+                    </h5>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-slate-400">Score:</span>
+                        <span className="text-white ml-2">{selectedSubmission.aiValidation.aiScore}/100</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400">Confidence:</span>
+                        <span className="text-white ml-2">
+                          {Math.round(selectedSubmission.aiValidation.confidence * 100)}%
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-400">Recommendation:</span>
+                        <span className="text-white ml-2">{selectedSubmission.aiValidation.aiRecommendation}</span>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <p className="text-slate-300 text-sm">{selectedSubmission.aiValidation.aiFeedback}</p>
+                    </div>
+                    {selectedSubmission.aiValidation.aiFlags.length > 0 && (
+                      <div className="mt-2">
+                        <span className="text-orange-400 text-sm">Flags: </span>
+                        <span className="text-slate-300 text-sm">
+                          {selectedSubmission.aiValidation.aiFlags.join(", ")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -2921,14 +3499,17 @@ export default function DAODashboard() {
               </Button>
               <Button
                 variant="outline"
-                onClick={handleRejectSubmission}
+                onClick={() => selectedSubmission && handleRejectSubmission(selectedSubmission, reviewForm.feedback)}
                 disabled={isReviewing || !reviewForm.feedback.trim()}
                 className="border-red-600 text-red-400 hover:bg-red-900/20 bg-transparent"
               >
                 {isReviewing ? "Processing..." : "Reject"}
               </Button>
               <Button
-                onClick={handleApproveSubmission}
+                onClick={() =>
+                  selectedSubmission &&
+                  handleApproveSubmission(selectedSubmission, reviewForm.feedback, reviewForm.qualityScore)
+                }
                 disabled={isReviewing || !reviewForm.feedback.trim()}
                 className="bg-gradient-to-r from-green-600 to-blue-600"
               >
