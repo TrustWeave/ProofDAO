@@ -45,7 +45,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { CONTRACT_ADDRESS_DAO, CONTRACT_ADDRESS_DAC } from "@/utils/constants"
 import AIValidationDashboard from "@/components/ai-validation"
-import { aiClientService } from "@/lib/ai-client"
 import axios from "axios"
 
 interface DAO {
@@ -610,10 +609,14 @@ export default function DAODashboard() {
   useEffect(() => {
     const checkAIHealth = async () => {
       try {
-        const health = await aiClientService.getHealthStatus()
-        setAIHealthStatus(health)
-        setAIServiceAvailable(health.status === "online" && health.hasApiKey)
-        console.log("✅ AI Service health check completed:", health)
+        const response = await fetch("/api/ai/health")
+        const result = await response.json()
+
+        if (result.success) {
+          setAIHealthStatus(result.data)
+          setAIServiceAvailable(result.data.status === "online" && result.data.hasApiKey)
+          console.log("✅ AI Service health check completed:", result.data)
+        }
       } catch (error) {
         console.error("❌ AI Service health check failed:", error)
         setAIServiceAvailable(false)
@@ -989,7 +992,7 @@ export default function DAODashboard() {
     })
   }, [submissions])
 
-  // AI Validation Functions using client service
+  // AI Validation Functions using server-side API
   const validateSubmissionWithAI = async (submissionId: string): Promise<void> => {
     if (!aiServiceAvailable) {
       throw new Error("AI service not available")
@@ -1006,21 +1009,27 @@ export default function DAODashboard() {
     setSubmissions((prev) => prev.map((s) => (s.id === submissionId ? { ...s, isProcessingAI: true } : s)))
 
     try {
-      const startTime = Date.now()
-      const aiResult = await aiClientService.validateSubmission(task, submission)
-      const processingTime = Date.now() - startTime
+      const response = await fetch("/api/ai/validate-submission", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ task, submission }),
+      })
 
-      const aiValidation = {
-        ...aiResult,
-        processingTime,
-        validatedAt: Date.now(),
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "AI validation failed")
       }
+
+      const result = await response.json()
+      const aiValidation = result.data
 
       setSubmissions((prev) =>
         prev.map((s) => (s.id === submissionId ? { ...s, aiValidation, isProcessingAI: false } : s)),
       )
 
-      console.log(`✅ AI validation completed for submission ${submissionId}: ${aiResult.aiScore}/100`)
+      console.log(`✅ AI validation completed for submission ${submissionId}: ${aiValidation.aiScore}/100`)
     } catch (error) {
       console.error("❌ AI validation failed:", error)
       setSubmissions((prev) => prev.map((s) => (s.id === submissionId ? { ...s, isProcessingAI: false } : s)))
@@ -1037,43 +1046,47 @@ export default function DAODashboard() {
     setSubmissions((prev) => prev.map((s) => (submissionIds.includes(s.id) ? { ...s, isProcessingAI: true } : s)))
 
     try {
-      const submissionTaskPairs = submissionIds
-        .map((id) => {
-          const submission = submissions.find((s) => s.id === id)
-          const task = submission ? tasks.find((t) => t.id === submission.taskId) : null
-          return submission && task ? { submission, task } : null
-        })
-        .filter((pair): pair is { submission: Submission; task: Task } => pair !== null)
+      const submissionsToValidate = submissionIds
+        .map((id) => submissions.find((s) => s.id === id))
+        .filter((s): s is Submission => s !== undefined)
 
-      const startTime = Date.now()
-      const results = await aiClientService.batchValidateSubmissions(
-        daoId,
-        submissionTaskPairs.map((p) => p.submission),
-        submissionTaskPairs.map((p) => p.task),
-      )
-      const totalProcessingTime = Date.now() - startTime
+      const tasksForValidation = submissionsToValidate
+        .map((submission) => tasks.find((t) => t.id === submission.taskId))
+        .filter((t): t is Task => t !== undefined)
+
+      const response = await fetch("/api/ai/batch-validate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          daoId,
+          submissions: submissionsToValidate,
+          tasks: tasksForValidation,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Batch validation failed")
+      }
+
+      const result = await response.json()
+      const results = result.data
 
       // Update all submissions with results
       setSubmissions((prev) =>
         prev.map((s) => {
-          const resultIndex = submissionIds.indexOf(s.id)
-          if (resultIndex >= 0 && results[resultIndex]) {
-            const result = results[resultIndex]
+          const resultData = results.find((r: any) => r.submissionId === s.id)
+          if (resultData) {
+            const { submissionId, ...aiValidation } = resultData
             return {
               ...s,
-              aiValidation: {
-                aiScore: result.aiScore,
-                aiRecommendation: result.aiRecommendation,
-                aiFeedback: result.aiFeedback,
-                aiFlags: result.aiFlags,
-                confidence: result.confidence,
-                processingTime: Math.round(totalProcessingTime / submissionIds.length),
-                validatedAt: Date.now(),
-              },
+              aiValidation,
               isProcessingAI: false,
             }
           }
-          return s.id === submissionIds[resultIndex] ? { ...s, isProcessingAI: false } : s
+          return submissionIds.includes(s.id) ? { ...s, isProcessingAI: false } : s
         }),
       )
 
@@ -1118,7 +1131,21 @@ export default function DAODashboard() {
     if (!task) return
 
     try {
-      const suggestions = await aiClientService.getTaskSuggestions(task)
+      const response = await fetch("/api/ai/task-suggestions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ task }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to get task suggestions")
+      }
+
+      const result = await response.json()
+      const suggestions = result.data
 
       setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, aiSuggestions: suggestions } : t)))
     } catch (error) {

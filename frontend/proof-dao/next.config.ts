@@ -4,7 +4,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  serverExternalPackages: ['alith', '@lazai-labs/alith-linux-x64-gnu'],
+  serverExternalPackages: [
+    'alith'
+  ],
   typescript: {
     ignoreBuildErrors: true,
   },
